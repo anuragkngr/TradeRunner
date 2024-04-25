@@ -1,0 +1,35 @@
+{
+  "Expiry": [
+    {
+      "Exch": "N",
+      "ExchType": "D",
+      "ExpiryDate": "/Date(1713430800000+0530)/"
+    },
+    {
+      "Exch": "N",
+      "ExchType": "D",
+      "ExpiryDate": "/Date(1714035600000+0530)/"
+    },
+    {
+      "Exch": "N",
+      "ExchType": "D",
+      "ExpiryDate": "/Date(1714640400000+0530)/"
+    },
+    {
+      "Exch": "N",
+      "ExchType": "D",
+      "ExpiryDate": "/Date(1715245200000+0530)/"
+    },
+    {
+      "Exch": "N",
+      "ExchType": "D",
+      "ExpiryDate": "/Date(1715850000000+0530)/"
+    },
+    {
+      "Exch": "N",
+      "ExchType": "D",
+      "ExpiryDate": "/Date(1717059600000+0530)/"
+    },
+    { "Exch": "N", "ExchType": "D", "ExpiryDate": "/Date(1719478800000+0530)/" }
+  ]
+}
