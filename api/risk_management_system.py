@@ -8,7 +8,7 @@ oms = OMS()
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application{'_' + now.strftime("%H-%S")}.log",
+    level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 class RMS: 

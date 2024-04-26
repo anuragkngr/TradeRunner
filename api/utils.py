@@ -1,15 +1,12 @@
-import ast, traceback, numpy as np, json, pandas as pd, logging
-from tabulate import tabulate, SEPARATING_LINE
+import ast, traceback, json, pandas as pd, logging
 conf = json.load(open("./data/configuration.json"))
-from datetime import datetime, timedelta, time, date
-# from logzero import logger
+from datetime import datetime, date
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application{'_' + now.strftime("%H-%S")}.log",
+    level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
-import requests
 flag = False
 if flag:
     url = 'https://images.dhan.co/api-data/api-scrip-master.csv'
@@ -32,75 +29,22 @@ class Utils:
         df = df[(df['strike'] == (strike*100) & (df['symbol'].str.endswith(optiontype)))]
         return df['token'], df['symbol']
 
-    def updateTradeMargin(self, index, margin): 
+    def updateTrade(self, trd): 
         trd_data = {}
         with open("./data/margin.txt", "r") as fileStore:
             trd_data = fileStore.readline()
             fileStore.close()
         if isinstance(trd_data, str) and trd_data.strip() != "": 
             trd_data = ast.literal_eval(trd_data)
-        else: trd_data = {}
-        trd_data[index] = margin
+        else: trd_data = {'NIFTY': 0.0, 'BANKNIFTY': 0.0, 'FINNIFTY': 0.0, 'NIFTYMCAP50': 0.0, 'SENSEX': 0.0, 'BANKEX': 0.0}
+        trd_data[trd.index] = trd.margin
         try:
             with open("./data/margin.txt", "w") as fileStore:
-                res = fileStore.write(str(trd_data))
+                fileStore.write(str(trd_data))
                 fileStore.close()
         except Exception:
             print(traceback.format_exc())
-            logger.error(f"trade book, saveTrade {traceback.format_exc()}")
-
-    def print(self):  # sourcery skip: extract-duplicate-method
-        tradeNotes = []
-        notesSummary = []
-        for trd in self.trades:
-            if trd.status == "open":
-                tmp = trd.orders_print()
-                df = pd.DataFrame(tmp)
-                if not tradeNotes: 
-                    tradeNotes = df.values.tolist()
-                else: 
-                    tradeNotes.append(SEPARATING_LINE)
-                    tradeNotes = tradeNotes + df.values.tolist()
-                tmp = self.tradeNoteTable(trd)
-                df = pd.DataFrame(tmp)
-                if not notesSummary: 
-                    notesSummary = df.values.tolist()
-                else: 
-                    notesSummary.append(SEPARATING_LINE)
-                    notesSummary = notesSummary + df.values.tolist()
-        # dframe = pd.DataFrame(tradeNotes)
-        dframe = tabulate(tradeNotes, tablefmt="rounded_outline", floatfmt=".2f")
-        logger.info(dframe)
-        # print(dframe)
-        # dframe = pd.DataFrame(notesSummary)
-        dframe = tabulate(notesSummary, tablefmt="mixed_outline", floatfmt=".2f")
-        logger.info(dframe)
-        # print(dframe)
-
-    def tradeNoteTable(self, trd):
-        # print("aaa--trd.index", trd.index, self.broker.getPrice(trd.index, 'IDX'))
-        return [
-            {
-                1: f"Fund: {str(round(trd.margin, 2))}",
-                2: f"Spot: {str(round(self.broker.getPrice(trd.index, 'IDX')))}",
-                3: f"P&L: {str(round(trd.pnl))} ({str(round(trd.pnlPercent, 2))})",
-                4: f"Target: {str(round(trd.reward, 2))}",
-                6: f"SL: {str(round(trd.risk, 2))}",
-                5: f"Step: {str(round(trd.step, 2))}",
-            }
-        ]
-    
-    def tradeNote(self, trd):
-        return (
-            f"""\n#####   P&L: {str(round(trd.pnl, 2))}, Utilized: {str(round(trd.margin, 2))}, P&L (%): {str(round(trd.pnlPercent, 2))}, SL (%): {str(round(trd.risk, 2))}   #####\n"""
-        )
-    def notesTable(self):
-        loss = 0;profit = 0
-        if self.openTrades > 0:
-            loss = sum(trd.risk for trd in self.trades if trd.status in ["open"])
-            profit = sum(trd.reward for trd in self.trades if trd.status in ["open"])
-            return f"""[['Open Trades: {str(self.openTrades)}', 'Total: {str(round(self.utilized, 2))}', 'P&L: {str(round(self.pnl))} ({str(round(self.pnlPercent, 2))})', 'COM-Target: {str(round(profit, 2))}', 'COM-SL: {str(round(loss, 2))}']]"""
-
+            logger.error(f"trade book, updateTrade {traceback.format_exc()}")
 
     def getDate(self):
         return datetime.now().strftime("%d/%m/%Y")

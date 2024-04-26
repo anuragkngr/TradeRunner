@@ -11,7 +11,7 @@ util = Utils()
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application{'_' + now.strftime("%H-%S")}.log",
+    level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 
@@ -39,9 +39,16 @@ class TradeBook:
         self.totalTrades += 1
         self.openTrades += 1
         self.fundUpdate(trd)
-        util.updateTradeMargin(trd.index, trd.margin)
+        util.updateTrade(trd)
         # trd.update()
 
+    def clean(self):
+        trds = self.trades
+        for trd in trds:
+            if trd.status not in ["open"]:
+                self.trades.remove(trd)
+                self.totalTrades = self.totalTrades - 1
+    
     def loadTrades(self, pos): 
         dic_data = [];posList=[]
         with open("./data/margin.txt", "r") as fileStore:
@@ -55,7 +62,7 @@ class TradeBook:
                 for po in pos: 
                     if idx == po.index: 
                         for po_inn in pos: 
-                            if idx == po_inn.symbol.index: posList.append(po_inn)
+                            if idx == po_inn.index: posList.append(po_inn)
                         break
             if posList:
                 trd = Trade(posList, idx)
@@ -73,15 +80,6 @@ class TradeBook:
         except Exception:
             print(traceback.format_exc())
             logger.error(f"trade book, loadTrades {traceback.format_exc()}")
-
-    def clean(self):
-        trds = self.trades
-        for trd in trds:
-            if trd.status not in ["open"]:
-                self.trades.remove(trd)
-                self.totalTrades = self.totalTrades - 1
-
-    # def exitTrades(self):
 
     def setFinalRisk(self):
         if self.finalFlag is False:

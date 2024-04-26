@@ -5,14 +5,14 @@ from datetime import datetime, time, timedelta
 conf = json.load(open("./data/configuration.json"))
 from time import sleep
 from dhanhq import dhanhq
-trade_headers=['SYMBOL', 'QUANTITY', 'POSITION', 'COST', 'PRICE', 'P&L', 'REALISED']
+trade_headers=['SYMBOL', 'QUANTITY', 'POSITION', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED']
 idx_list = {'NIFTY': '13', 'BANKNIFTY': '25', 'FINNIFTY': '27', 'INDIA VIX': '21', 'NIFTYMCAP50': '20', 'BANKEX': '69', 'SENSEX': '51'}
 util = Utils()
 token_list = [{"exchangeType": 1, "tokens": ["26009"]}]
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application{'_' + now.strftime("%H-%S")}.log",
+    level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 class OMS(): 
@@ -41,11 +41,11 @@ class OMS():
         try:
             if conf['mock']: res = json.load(open('./data/positions.json'))
             else : res = self.dhan.get_positions()
-            logger.info(f"position response: {str(res)}")
+            logger.info(f"OMS API position response: {json.dumps(res)}")
         except Exception:
             logger.info(f"OMS API  Exception positions response: {traceback.format_exc()}")
             self.refreshConnection('positions')
-            res = self.dhan.position()
+            res = self.dhan.get_positions()
         for po in res['data'] :
             if po["positionType"] not in ['CLOSED']:
                 pos.append(Position(po))
@@ -55,6 +55,7 @@ class OMS():
         try:
             if conf['mock']: rms = json.load(open('./data/rms.json'))['data']
             else : rms = self.dhan.get_fund_limits()['data']
+            logger.info(f"OMS API getFundLimits response: {json.dumps(rms)}")
         except Exception:
             logger.info(f"OMS API  Exception getFundLimits response: {traceback.format_exc()}")
             self.refreshConnection('getFundLimits')
@@ -66,6 +67,7 @@ class OMS():
         book_price = -1; book = []; order = []
         if conf['mock']: book = json.load(open('./data/order_book.json'))['data']
         else : book = self.dhan.orderBook()['data']
+        logger.info(f"OMS API orderBook response: {json.dumps(book)}")
         if book:
             for bb in book:
                 if bb['tradingsymbol'] == tradingsymbol: order.append(bb)
@@ -87,6 +89,7 @@ class OMS():
             # "UNREALISED": po.unrealised,
             }
             resp.append(tmppo)
+        logger.info(f"OMS API print response: {str(resp)}")
         return resp
 
     def execOrder(self, position, transaction_type) -> bool:
@@ -96,15 +99,16 @@ class OMS():
             "security_id": position.security_id, 
             "exchange_segment": self.dhan.NSE_FNO,
             "transaction_type": transaction_type,
-            "quantity": position.quantity,
+            "quantity": abs(int(position.quantity)),
             "order_type": self.dhan.MARKET,
             "product_type": position.product_type,
             "price": "0"
         }
         try:
+            logger.info(f"OMS API execOrder request: {str(req)}")
             res = req
             # res = self.dhan.placeOrder(req)
-            logger.info(res)
+            logger.info(f"OMS API execOrder response: {str(res)}")
             print(res)
         except Exception:
             logger.info(f"OMS API  Exception execOrder response: {traceback.format_exc()}")
@@ -223,8 +227,9 @@ def myOrder(tradingsymbol, symboltoken, transactiontype, quantity):
 if __name__ == "__main__": 
     tradingsymbol = 'NIFTY'  
     oms = OMS()
-    pos = oms.positions()
-    print(json.loads(json.dumps(pos)))
+    pos = oms.dhan.get_positions()
+    print((json.dumps(pos['data'])))
+    
     # print(oms.ohlc('67534'))
     # print(oms.getFundLimits())
     exit()

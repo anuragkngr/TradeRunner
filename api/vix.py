@@ -1,6 +1,5 @@
-# import sys
-# sys.path.append("../TradeRunner")
-from startup import conf
+import json
+conf = json.load(open("./data/configuration.json"))
 
 class Vix:
     def __init__(self, vix, vix_trade_start=None):

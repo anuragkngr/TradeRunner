@@ -6,7 +6,7 @@ from time import sleep
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application{'_' + now.strftime("%H-%S")}.log",
+    level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 from utils import Utils
@@ -38,15 +38,9 @@ class Trade:
         quantity = 50 if self.index == "NIFTY" else 15 if self.index == "BANKNIFTY" else 40
         self.quantity = quantity * lots
         self.strategy = strategy
-        # datetime.timestamp(datetime.now())
         self.tradeId = datetime.now().timestamp()
         self.start = datetime.now().timestamp()
-        # self.marketId = "13" if self.index == "NIFTY" else "25" if self.index == "BANKNIFTY" else "27"
-        self.positions = [pos for pos in positions if pos.index == self.index]
-        # for pos in positions:
-        #     if pos['symbolname'] == self.index:
-        #         pos['netprice'] = oms.orderBook(pos['tradingsymbol'])
-        #         self.positions.append(pos)
+        self.positions = [pos for pos in positions]
         if len(self.positions) == 1: self.strategy = "buying"
         # vix = oms.ohlc('INDIA VIX')
         # vix = Vix(vix)
@@ -124,13 +118,6 @@ class Trade:
                 5: f"{'Target: ' +str(round(self.target, 2))}",
                 6: f"{'Spot: ' + str(round(self.spot, 2))}",
             },
-            # {
-            #     1: f"{'Spot: ' + str(round(self.spot, 2))}",
-            #     2: f"{'Step: ' +str(round(self.step, 2))}",
-            #     3: f"{'VIX: ' +str(round(self.vix_trade_start, 2))}",
-            #     4: f"{'DIF: ' +str(round((self.vix_trade_start - self.vix), 2))}",
-            #     5: f"{'TREND: ' +str(self.vix_trend_trade)}",
-            # },
             {
                 1: f"{'Strategy: ' + str(self.strategy)}",
                 2: f"{'Status: ' + str(self.status)}",
@@ -162,7 +149,7 @@ class Trade:
             "PRICE": po.price,
             "P&L": po.pnl,
             "REALISED": po.realized,
-            # "UNREALISED": po['unrealised'],
+            "UNREALIZED": po.unrealized,
             }
             resp.append(res)
         return resp

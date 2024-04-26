@@ -1,4 +1,4 @@
-import ast, traceback, numpy as np, json, logging,os
+import traceback, json, logging,os
 conf = json.load(open("./data/configuration.json"))
 from datetime import datetime, time
 from time import sleep
@@ -7,10 +7,9 @@ tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 os.makedirs(f"./logs/{tm}", exist_ok=True)
 os.makedirs(f"./data/", exist_ok=True)
 logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application{'_' + now.strftime("%H-%S")}.log",
+    level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
-from tabulate import tabulate, SEPARATING_LINE
 from order_management_system import OMS
 from trade_book import TradeBook
 from risk_management_system import RMS
