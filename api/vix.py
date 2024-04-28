@@ -7,12 +7,9 @@ class Vix:
         self.high = vix["high"] if "high" in vix else -1
         self.low = vix["low"] if "low" in vix else -1
         self.close = vix["close"] if "close" in vix else -1
-        self.trend = "side"
+        self.move = float(self.close) - float(self.open)
+        self.movePercent = self.move * 100 / float(self.close)
         if vix_trade_start is not None: self.open = vix_trade_start
-        travel = self.open - self.close
-        if abs(travel) > (self.open * conf['vix_alert']):
-            self.trend = "SELL" if travel < 0 else "BUY"
-        
     def to_dict(self):
         return self.__dict__
         # return json.dumps(self.__dict__)

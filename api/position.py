@@ -5,7 +5,7 @@ now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
-    filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 class Position:
     def __init__(self, pos, trade=False):
@@ -53,21 +53,21 @@ class Position:
         self.option_type = pos.option_type if hasattr(pos, 'option_type') else 0
         self.strike_price = pos.strike_price if hasattr(pos, 'strike_price') else 0
 
-        self.price = (float(self.unrealized)/float(self.quantity))
+        self.price = (float(self.unrealized)/abs(float(self.quantity)))
         if self.position_type == 'LONG':
             if float(self.sell_avg) > 0:
-                buy_avg = ((self.buy_avg) - (float(self.sell_avg))) * float(self.quantity)
-                self.pnl = float(self.unrealized) - float(buy_avg)
-                # self.pnl = (float(self.unrealized) - float(self.realized))*(-1)
-            else: self.pnl = float(self.unrealized) + float(self.realized)
+                self.pnl = float(self.unrealized) + float(self.realized)
+            else:
+                deltaPrice = (float(self.buy_avg) - float(self.cost_price))*abs(float(self.quantity))
+                self.pnl = float(self.unrealized) + float(self.realized) + deltaPrice
             self.price = float(self.buy_avg) + self.price
         else : 
             if float(self.buy_avg) > 0:
-                sell_avg = ((self.sell_avg) - (float(self.buy_avg))) * abs(float(self.quantity))
-                self.pnl = (float(self.unrealized) - float(sell_avg))*(-1)
-                # self.pnl = (float(self.unrealized) - float(self.realized))*(-1)
-            else: self.pnl = (float(self.unrealized) - float(self.realized))*(-1)
-            self.price = float(self.sell_avg) - self.price
+                self.pnl = (float(self.unrealized) - float(self.realized))*(-1)
+            else:
+                deltaPrice = (float(self.sell_avg) - float(self.cost_price))*abs(float(self.quantity))
+                self.pnl = (float(self.unrealized) - float(self.realized) + deltaPrice)*(-1)
+            self.price = float(self.sell_avg) + self.price
 
     def to_dict(self):
         return self.__dict__

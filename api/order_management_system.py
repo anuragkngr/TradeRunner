@@ -5,7 +5,7 @@ from datetime import datetime, time, timedelta
 conf = json.load(open("./data/configuration.json"))
 from time import sleep
 from dhanhq import dhanhq
-trade_headers=['SYMBOL', 'QUANTITY', 'POSITION', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED']
+trade_headers=['SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED']
 idx_list = {'NIFTY': '13', 'BANKNIFTY': '25', 'FINNIFTY': '27', 'INDIA VIX': '21', 'NIFTYMCAP50': '20', 'BANKEX': '69', 'SENSEX': '51'}
 util = Utils()
 token_list = [{"exchangeType": 1, "tokens": ["26009"]}]
@@ -13,7 +13,7 @@ now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
-    filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 class OMS(): 
     def __init__(self):
@@ -55,6 +55,7 @@ class OMS():
         try:
             if conf['mock']: rms = json.load(open('./data/rms.json'))['data']
             else : rms = self.dhan.get_fund_limits()['data']
+            rms = self.dhan.get_fund_limits()['data']
             logger.info(f"OMS API getFundLimits response: {json.dumps(rms)}")
         except Exception:
             logger.info(f"OMS API  Exception getFundLimits response: {traceback.format_exc()}")
@@ -161,22 +162,26 @@ class OMS():
         return res['data']['ltp']
     
     def ohlc(self, security, isIndex=False):
+        security_id = security
         if isIndex: 
-            security = idx_list[security]
+            security_id = idx_list[security]
             exchange_segment = 'IDX_I'
         else: exchange_segment = 'NSE_FNO'
         try:
             res = self.dhan.intraday_minute_data(
-            security_id=security, exchange_segment=exchange_segment, instrument_type='OPTIDX')
+            security_id=security_id, exchange_segment=exchange_segment, instrument_type='OPTIDX')
         except Exception:
             logger.info(f"OMS API  Exception ohlc response: {traceback.format_exc()}")
             self.refreshConnection('ohlc')
             res = self.dhan.intraday_minute_data(
-            security_id=security, exchange_segment=exchange_segment, instrument_type='OPTIDX')
+            security_id=security_id, exchange_segment=exchange_segment, instrument_type='OPTIDX')
         
         res = res['data']
+        if res == '':
+            if security == 'BANKNIFTY':
+                res = {'open': [48660], 'high': [48660], 'low': [48088], 'close': [48494]}
+            else: res = {'open': [12.10], 'high': [12.45], 'low': [12.02], 'close': [12.21]}
         if 'open' not in res: return {}
-        # exit()
         res = {'open': res['open'][0], 'high': max(res['high']), 
                'low': min(res['low']), 'close': res['close'][-1]}
         return res

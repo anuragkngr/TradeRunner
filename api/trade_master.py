@@ -8,7 +8,7 @@ os.makedirs(f"./logs/{tm}", exist_ok=True)
 os.makedirs(f"./data/", exist_ok=True)
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
-    filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 from order_management_system import OMS
 from trade_book import TradeBook
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         while True:
             trade_book.print()
             rms.verify(trade_book)
-            sleep(1)
+            sleep(10)
             # sleep(conf["refresh_interval"])
     except Exception as e:
         print(traceback.format_exc())

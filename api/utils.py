@@ -5,7 +5,7 @@ now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
-    filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 flag = False
 if flag:
@@ -36,8 +36,19 @@ class Utils:
             fileStore.close()
         if isinstance(trd_data, str) and trd_data.strip() != "": 
             trd_data = ast.literal_eval(trd_data)
-        else: trd_data = {'NIFTY': 0.0, 'BANKNIFTY': 0.0, 'FINNIFTY': 0.0, 'NIFTYMCAP50': 0.0, 'SENSEX': 0.0, 'BANKEX': 0.0}
-        trd_data[trd.index] = trd.margin
+        else: trd_data = {'NIFTY': {'margin': 0, 'trades': []}, 'BANKNIFTY': {'margin': 0, 'trades': []}, 
+                          'FINNIFTY': {'margin': 0, 'trades': []}, 'NIFTYMCAP50': {'margin': 0, 'trades': []}, 
+                          'SENSEX': {'margin': 0, 'trades': []}, 'BANKEX': {'margin': 0, 'trades': []}}
+        
+        trades = trd_data[trd.index]['trades']
+        if trades:
+            for t in trades:
+                if t['trade_id'] == trd.trade_id:
+                    trades.remove(t)
+                    trades.append(trd.to_dict_obj())
+                    #  trd_data[trd.index]['trades'][str(trd.trade_id)] = trd.to_dict_obj()
+                    break
+        else: trd_data[trd.index]['trades'].append(trd.to_dict_obj())
         try:
             with open("./data/margin.txt", "w") as fileStore:
                 fileStore.write(str(trd_data))

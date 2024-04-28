@@ -7,7 +7,7 @@ now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
-    filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 from utils import Utils
 from vix import Vix
@@ -18,7 +18,7 @@ util = Utils()
 
 class Trade: 
 
-    def __init__(self, positions, index=None, strategy = "IC"):
+    def __init__(self, positions, index=None, fund=None, trade_id=None):
         self.pnl = 0.0
         self.pnlMax = 0.0
         self.pnlMin = 0.0
@@ -30,30 +30,27 @@ class Trade:
         self.sl = conf["loss"]
         # fund_limit = conf["fund_limit"]
         lots = conf["lots"]
-        self.margin = 0.0
+        self.margin = 0.0 if fund is None else fund
         self.status = "open"
         self.index = index
-        self.spot = oms.ohlc(self.index, True)['close']
+        price = oms.ohlc(self.index, True)
+        self.spot = price['close']
+        self.move = float(self.spot) - float(price['open'])
+        self.movePercent = self.move * 100 / float(self.spot)
         # if self.index is None: self.index = util.getIndex(positions)
         quantity = 50 if self.index == "NIFTY" else 15 if self.index == "BANKNIFTY" else 40
         self.quantity = quantity * lots
-        self.strategy = strategy
-        self.tradeId = datetime.now().timestamp()
+        self.strategy = 'selling'
+        self.trade_id = str(round(datetime.now().timestamp())) if trade_id is None else trade_id
         self.start = datetime.now().timestamp()
         self.positions = [pos for pos in positions]
         if len(self.positions) == 1: self.strategy = "buying"
-        # vix = oms.ohlc('INDIA VIX')
-        # vix = Vix(vix)
-        # self.vix_trend = vix.trend
-        # self.vix_trend_trade = self.vix_trend
-        # self.vix_trade_start = vix.close
-        # self.vix = vix.close
 
     def updateIndex(self): 
-        # vix = oms.ohlc('INDIA VIX')
-        # self.vix_trend_trade = Vix(vix, self.vix_trade_start).trend
-        # self.vix = vix['close']
-        self.spot = oms.ohlc(self.index, True)['close']
+        price = oms.ohlc(self.index, True)
+        self.spot = price['close']
+        self.move = float(self.spot) - float(price['open'])
+        self.movePercent = self.move * 100 / float(self.spot)
 
     def addOrder(self, pos): self.positions.append(pos)
 
@@ -111,20 +108,11 @@ class Trade:
     def print(self):
         return [
             {
-                1: f"{'Index: ' + str(self.index)}",
-                2: f"{'Fund: ' + str(self.margin)}",
-                3: f"{'P&L: ' + str(round(self.pnl, 2))}",
-                4: f"{'SL: ' +str(round(self.sl, 2))}",
-                5: f"{'Target: ' +str(round(self.target, 2))}",
-                6: f"{'Spot: ' + str(round(self.spot, 2))}",
-            },
-            {
-                1: f"{'Strategy: ' + str(self.strategy)}",
-                2: f"{'Status: ' + str(self.status)}",
-                3: f"{'P&L %: ' + str(round(self.pnlPercent, 2))}",
-                4: f"{'P&L_Max: ' + str(round(self.pnlMax, 2))}",
-                5: f"{'P&L_Min: ' + str(round(self.pnlMin, 2))}",
-                6: f"{'Step: ' +str(round(self.step, 2))}",
+                1: f"{str(self.index)[:3] + ' ' + str(round(self.spot)) + ': (' + str(round(self.movePercent, 1)) + '%) ' + str(round(self.move))}",
+                2: f"{'P&L: ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",# Fund:' + str(round(self.margin))}",
+                3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
+                4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
+                5: f"{str(round(self.pnlMax)) + '(x)/' + str(round(self.pnlMin)) + '(n)'}",
             }
         ]
     
@@ -143,8 +131,9 @@ class Trade:
             res = {
             # "INDEX": po.index,
             "SYMBOL": po.symbol,
+            # "SECURITY": po.security_id,
             "QUANTITY": po.quantity,
-            "POSITION": po.position_type,
+            # "POSITION": po.position_type,
             "COST": po.cost_price,
             "PRICE": po.price,
             "P&L": po.pnl,
@@ -152,6 +141,12 @@ class Trade:
             "UNREALIZED": po.unrealized,
             }
             resp.append(res)
+        return resp
+    
+    def to_dict_obj(self) -> dict:
+        pos = self.positions;resp = {'margin': self.margin, 'trade_id': self.trade_id}
+        pos = [x.to_dict() for x in pos]
+        resp['position'] = pos
         return resp
 
     def update(self, positions):#, priceUpdateFlag=False
@@ -162,7 +157,7 @@ class Trade:
                     pos.update(po)
         self.pnl = sum(float(pos.pnl) for pos in self.positions if pos.position_type not in ['CLOSED'])
         self.pnlPercent = (self.pnl*100/float(self.margin)) if self.margin != 0.0 else 0.0
-        if self.pnl > self.pnlMax: self.pnlMax = self.pnl
+        if self.pnl > self.pnlMax or self.pnlMax == 0: self.pnlMax = self.pnl
         if self.pnl < self.pnlMin or self.pnlMin == 0: self.pnlMin = self.pnl
         sleep(2)
         self.updateIndex()

@@ -2,7 +2,7 @@ import ast, traceback, numpy as np, json, pandas as pd, logging
 conf = json.load(open("./data/configuration.json"))
 from tabulate import tabulate, SEPARATING_LINE
 from datetime import datetime, time
-# from logzero import logger
+from vix import Vix
 from trade import Trade
 from utils import Utils
 from order_management_system import OMS, idx_list, trade_headers
@@ -12,7 +12,7 @@ now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
-    filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 
 class TradeBook: 
@@ -33,12 +33,16 @@ class TradeBook:
         self.finalRisk = conf["final_risk"]
         self.target = 0
         self.sl = 0
+        vix = oms.ohlc('INDIA VIX')
+        self.vix = Vix(vix)
+        self.risk = conf["risk"]
+        self.reward = conf["reward"]
 
-    def enterTrade(self, trd): 
+    def enterTrade(self, trd, fund=None): 
         self.trades.append(trd)
         self.totalTrades += 1
         self.openTrades += 1
-        self.fundUpdate(trd)
+        self.fundUpdate(trd, fund)
         util.updateTrade(trd)
         # trd.update()
 
@@ -50,29 +54,36 @@ class TradeBook:
                 self.totalTrades = self.totalTrades - 1
     
     def loadTrades(self, pos): 
-        dic_data = [];posList=[]
+        dic_data = [];posList=pos.copy()
+        s_ids = [x.security_id for x in pos]
         with open("./data/margin.txt", "r") as fileStore:
             dic_data = fileStore.readline()
             fileStore.close()
         if isinstance(dic_data, str) and dic_data.strip() != "": 
                 dic_data = ast.literal_eval(dic_data)
         for idx in dic_data:
-            posList = []
-            if float(dic_data[idx]) > 0:
-                for po in pos: 
-                    if idx == po.index: 
-                        for po_inn in pos: 
-                            if idx == po_inn.index: posList.append(po_inn)
-                        break
-            if posList:
-                trd = Trade(posList, idx)
-                self.trades.append(trd)
-                trd.margin = dic_data[idx]
-                if float(trd.margin) <= 0.0:
-                    trd.margin = self.fundUpdate(trd)
-                self.totalTrades += 1
-                self.openTrades += 1
-            else: dic_data[idx] = 0.0
+            idxPosList = [x for x in pos if x.index == idx]
+            index_data = dic_data[idx]['trades']
+            _copy = index_data.copy()
+            for _trd in index_data:
+                trd_pos = []
+                trd_flag = False
+                for _po in _trd['position']:
+                    if not trd_flag and _po['security_id'] in s_ids:
+                        for po in idxPosList:
+                            if po.security_id == _po['security_id']:
+                                if po.quantity == _po['quantity']:
+                                    trd_pos.append(po)
+                                    posList.remove(po)
+                                else:
+                                    _copy.remove(_trd)
+                                    trd_flag = True
+                                    break
+                    if trd_flag: break
+                if not trd_flag:
+                    _trade = Trade(trd_pos, idx, _trd['trade_id'])
+                    self.enterTrade(_trade, _trd['margin'])
+            dic_data[idx]['trades'] = _copy
         try:
             with open("./data/margin.txt", "w") as fileStore:
                 res = fileStore.write(str(dic_data))
@@ -80,6 +91,7 @@ class TradeBook:
         except Exception:
             print(traceback.format_exc())
             logger.error(f"trade book, loadTrades {traceback.format_exc()}")
+        return posList
 
     def setFinalRisk(self):
         if self.finalFlag is False:
@@ -111,13 +123,13 @@ class TradeBook:
                     flag = False
                     break
             if flag: idxList.remove(idx)
-        # flag = any((po.symbolname for po in pos) == (trd.index for trd in self.trades))
         return idxList
 
     def update(self):  # sourcery skip: low-code-quality
+        vix = oms.ohlc('INDIA VIX')
+        self.vix = Vix(vix)
         pos = oms.positions()
-        if len(self.trades) == 0: self.loadTrades(pos)
-        # if len(self.trades) == 0: self.util.priceUpdateAPI(self.trades)
+        if len(self.trades) == 0: pos = self.loadTrades(pos)
         pnl = 0.0
         resp = self.validateTrade(pos)
         if len(resp) > 0:
@@ -134,7 +146,7 @@ class TradeBook:
         self.pnlMax = sum(float(trd.pnlMax) for trd in self.trades if trd.status in ["open"])
         self.pnlPercent = (self.pnl*100/float(self.utilized)) if float(self.utilized) > 0.0 else 0.0
 
-    def fundUpdate(self, trd=None) -> None:
+    def fundUpdate(self, trd=None, fund=None) -> None:
         margin = 0.0
         limit = oms.getFundLimits()
         # print(limit)
@@ -147,9 +159,7 @@ class TradeBook:
             margin = self.utilized - float(othertrade)
         self.available = float(limit['availabelBalance'])
         if trd is not None: 
-            if isinstance(trd, dict): 
-                trd["margin"] = margin
-            else: trd.margin = margin
+            trd.margin = fund if fund is not None else margin
         return margin
 
     def printTrades(self):  # sourcery skip: extract-duplicate-method
@@ -173,7 +183,7 @@ class TradeBook:
         dframe = tabulate(trade, trade_headers, tablefmt="rounded_outline", floatfmt=".2f")
         logger.info('Trades response: ' + str(trade))
         print(dframe)
-        dframe = tabulate(note, tablefmt="mixed_outline", floatfmt=".2f")
+        dframe = tabulate(note, tablefmt="simple_outline", floatfmt=".2f")
         logger.info('Notes response: ' + str(note))
         print(dframe)
 
@@ -182,12 +192,17 @@ class TradeBook:
         for _ in range(4): print()
         self.printTrades()
         if self.openTrades > 0:
-            data = f"""[['Open Trades: {str(self.openTrades)}', 'Fund: {str(round(float(self.utilized), 2))}', 
-            'P&L: {str(round(float(self.pnl)))}', 'P&L %: ({str(round(float(self.pnlPercent), 2))})', 
-            'Target: {str(round(float(self.target)))}', 'SL: ({str(round(float(self.sl), 2))})', 
-            'P&L-Min: {str(round(float(self.pnlMin), 2))}', 'P&L-Max: {str(round(float(self.pnlMax), 2))}']]"""
-            data = ast.literal_eval(data)
-            dframe = tabulate(data, tablefmt="heavy_grid", floatfmt=".2f")
+            data = [
+                {
+                    1: f"{'VIX ' + str(round(self.vix.close, 2)) + ': (' + str(round(self.vix.movePercent, 2)) + '%) ' + str(round(self.vix.move, 2))}",
+                    2: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",# Fund=' + str(round(self.utilized))}",
+                    3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
+                    4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
+                    5: f"{str(round(self.pnlMax)) + '(x)/' + str(round(self.pnlMin)) + '(n)'}",
+                }
+            ]
+            df = pd.DataFrame(data)
+            dframe = tabulate(df.values.tolist(), tablefmt="mixed_outline", floatfmt=".2f")
             print(dframe)
         
     def to_dict(self):
@@ -195,20 +210,3 @@ class TradeBook:
     
 if __name__ == "__main__": 
     pos = json.load(open('./data/positions.json'))['data']
-    # poss = Positions(pos)
-    # trd = Trade(poss.positions)
-    # book.fundUpdate(dhan)
-    # pos = dhan.get_fund_limits()
-    # pos = json.load(open('./data/positions.json'))['data']
-    # book = TradeBook()
-    # book.enterTrade
-    # print(pos)
-    exit()
-# {'Open Trades: ': str(self.openTrades)},
-# {'Fund: ': str(round(float(self.utilized), 2))},
-# {'P&L: ': str(round(float(self.pnl), 2))},
-# {'P&L %: ': str(round(float(self.pnlPercent), 2))},
-# {'SL: ': str(round(float(self.sl), 2))},
-# {'Target: ': str(round(float(self.target), 2))},
-# {'P&L-Min: ': str(round(float(self.pnlMin), 2))},
-# {'P&L-Max: ': str(round(float(self.pnlMax), 2))},

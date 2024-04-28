@@ -9,7 +9,7 @@ now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
-    filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 class RMS: 
     # def __init__(self):
@@ -34,13 +34,13 @@ class RMS:
                     book.exitTrade(trd)
             else: logger.info("Trade continue.. ")
             pos = self.checkAdjustment(trd)
-            if pos == -1: 
+            if pos != -11: 
                 logger.info("response received, no adjustment required.")
                 continue
             else:
                 logger.info(f"skipping applying adjustment for pos {str(pos)}")    
-                # trd.adjustLeg(pos)
-                # time.sleep(2)
+                trd.adjustLeg(pos)
+                time.sleep(2)
                 # book.fundUpdate(trd)
     
     def checkTrade(self, trd) -> int:
