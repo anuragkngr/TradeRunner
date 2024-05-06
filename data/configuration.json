@@ -28,7 +28,7 @@
   "price_adjustment": 0.4,
   "final_risk": 0.03,
   "profit": 2199,
-  "loss": -1999,
+  "loss": -3999,
   "vix_alert": 0.05,
   "mock": false,
   "timer1": 30,

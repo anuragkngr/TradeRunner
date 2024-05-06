@@ -1,21 +1,26 @@
-import ast, logging, json
+import ast, logging, json, os
 from datetime import datetime, time
 from time import sleep
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
+os.makedirs(f"./logs/{tm}", exist_ok=True)
+os.makedirs(f"./data/", exist_ok=True)
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 class Position:
     def __init__(self, pos, trade=False):
-        self.index = pos["tradingSymbol"].split('-')[0] if "tradingSymbol" in pos else 0
+        self.index = pos["index"] if "index" in pos else None
+        if self.index is None and "tradingSymbol" in pos: 
+            self.index = pos["tradingSymbol"].split('-')[0] if '-' in pos["tradingSymbol"] else '-'
         self.symbol = pos["tradingSymbol"] if "tradingSymbol" in pos else 0
         self.security_id = pos["securityId"] if "securityId" in pos else 0
         self.position_type = pos["positionType"] if "positionType" in pos else 0
         self.exchange_segment = pos["exchangeSegment"] if "exchangeSegment" in pos else 0
-        self.product_type = pos["productType"] if "productType" in pos else 0
+        self.product_type = pos["productType"] if "productType" in pos else 'MARGIN'
         self.cost_price = pos["costPrice"] if "costPrice" in pos else 0
+        # self.price = 0
         self.buy_avg = pos["buyAvg"] if "buyAvg" in pos else 0
         self.buy_qty = pos["buyQty"] if "buyQty" in pos else 0
         self.sell_avg = pos["sellAvg"] if "sellAvg" in pos else 0
@@ -27,13 +32,22 @@ class Position:
         self.option_type = pos["drvOptionType"] if "drvOptionType" in pos else 0
         self.strike_price = pos["drvStrikePrice"] if "drvStrikePrice" in pos else 0
 
-        self.price = (float(self.unrealized)/float(self.quantity))
+        self.price = (float(self.unrealized)/abs(float(self.quantity)))
+
         if self.position_type == 'LONG':
-            self.price = float(self.buy_avg) + self.price
-            self.pnl = float(self.unrealized)
+            if float(self.sell_avg) > 0:
+                self.pnl = float(self.unrealized)
+            else:
+                deltaPrice = (float(self.buy_avg) - float(self.cost_price))*abs(float(self.quantity))
+                self.pnl = float(self.unrealized) + deltaPrice
+            self.price = float(self.buy_avg) + self.price# + float(self.realized)
         else : 
-            self.price = float(self.sell_avg) - self.price
-            self.pnl = float(self.unrealized)*(-1)
+            if float(self.buy_avg) > 0:
+                self.pnl = (float(self.unrealized))*(-1)
+            else:
+                deltaPrice = (float(self.sell_avg) - float(self.cost_price))*abs(float(self.quantity))
+                self.pnl = (float(self.unrealized) + deltaPrice)*(-1)
+            self.price = float(self.sell_avg) + self.price# - (float(self.realized)*(-1))
 
     def update(self, pos):
         self.index = pos.index if hasattr(pos, 'index') else '-'
@@ -56,17 +70,17 @@ class Position:
         self.price = (float(self.unrealized)/abs(float(self.quantity)))
         if self.position_type == 'LONG':
             if float(self.sell_avg) > 0:
-                self.pnl = float(self.unrealized) + float(self.realized)
+                self.pnl = float(self.unrealized)
             else:
                 deltaPrice = (float(self.buy_avg) - float(self.cost_price))*abs(float(self.quantity))
-                self.pnl = float(self.unrealized) + float(self.realized) + deltaPrice
+                self.pnl = float(self.unrealized) + deltaPrice
             self.price = float(self.buy_avg) + self.price
         else : 
             if float(self.buy_avg) > 0:
-                self.pnl = (float(self.unrealized) - float(self.realized))*(-1)
+                self.pnl = (float(self.unrealized))*(-1)
             else:
                 deltaPrice = (float(self.sell_avg) - float(self.cost_price))*abs(float(self.quantity))
-                self.pnl = (float(self.unrealized) - float(self.realized) + deltaPrice)*(-1)
+                self.pnl = (float(self.unrealized) + deltaPrice)*(-1)
             self.price = float(self.sell_avg) + self.price
 
     def to_dict(self):

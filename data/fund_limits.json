@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "remarks": "",
+  "data": {
+    "dhanClientId": "1100273145",
+    "availabelBalance": 368164.44,
+    "sodLimit": 369941.7,
+    "collateralAmount": 0.0,
+    "receiveableAmount": 0.0,
+    "utilizedAmount": 98520.0,
+    "blockedPayoutAmount": 0.0,
+    "withdrawableBalance": 368064.44
+  }
+}

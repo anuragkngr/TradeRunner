@@ -23,13 +23,16 @@ class RMS:
             logger.info(f"response received from checkTrade {status}")
             if status == 1:
                 logger.info(f"loss booked. total Loss {trd.pnl}")
+                print(f"loss booked. total Loss {round(trd.pnl)}")
                 if oms.closeTrade(trd):
                     book.exitTrade(trd)
                 continue
             if status == 2:
                 logger.info(f"profit increased. Profit {trd.pnl}")
+                print(f"Profit increased. Profit {round(trd.pnl)}")
             if status == 3:
                 logger.info(f"profit booked. total Profit {trd.pnl}")
+                print(f"Profit booked. total Profit {round(trd.pnl)}")
                 if oms.closeTrade(trd):
                     book.exitTrade(trd)
             else: logger.info("Trade continue.. ")
@@ -46,11 +49,12 @@ class RMS:
     def checkTrade(self, trd) -> int:
         ####### RMS #######
         logger.info("Verifying SL check")
-        if (trd.pnl < trd.sl or trd.pnlPercent < trd.risk) and trd.pnl > 0:
+        # if (trd.pnl < trd.sl or trd.pnlPercent < trd.risk) and trd.pnl > 0:
+        if (trd.pnl < trd.sl) and trd.pnl > 0:
             return 3 #Profit book
-        if trd.pnl < trd.sl or trd.pnlPercent < trd.risk:
+        if trd.pnl < trd.sl:
             return 1 #SL hit 
-        if trd.pnl > trd.target or trd.pnlPercent > trd.reward:
+        if trd.pnl > trd.target:
             trd.sl = trd.pnl - (trd.pnl*0.20)
             trd.target = trd.pnl + (trd.pnl*0.20)
             trd.risk = trd.reward - (trd.reward*0.20)

@@ -1,6 +1,7 @@
 from position import Position
 from utils import Utils
-import traceback, json, logging
+from time import sleep
+import traceback, json, logging, os
 from datetime import datetime, time, timedelta
 conf = json.load(open("./data/configuration.json"))
 from time import sleep
@@ -11,11 +12,13 @@ util = Utils()
 token_list = [{"exchangeType": 1, "tokens": ["26009"]}]
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
+os.makedirs(f"./logs/{tm}", exist_ok=True)
+os.makedirs(f"./data/", exist_ok=True)
 logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application.log",
+    level=logging.INFO, filename=f"./logs/{tm}/oms_client.log",
     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
-class OMS(): 
+class OMS_Client(): 
     def __init__(self):
         self.dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
 
@@ -36,7 +39,6 @@ class OMS():
         except Exception: return False
 
     def positions(self):
-        sleep(1)
         res = {}; pos = []
         try:
             if conf['mock']: res = json.load(open('./data/positions.json'))
@@ -63,19 +65,6 @@ class OMS():
             # rms = self.dhan.rmsLimit()['data']
         return {} if rms is None else rms
     
-    def orderBook(self, tradingsymbol):
-        sleep(1)
-        book_price = -1; book = []; order = []
-        if conf['mock']: book = json.load(open('./data/order_book.json'))['data']
-        else : book = self.dhan.orderBook()['data']
-        logger.info(f"OMS API orderBook response: {json.dumps(book)}")
-        if book:
-            for bb in book:
-                if bb['tradingsymbol'] == tradingsymbol: order.append(bb)
-            order = sorted(order, key=lambda x: datetime.strptime(x['exchtime'], '%d-%b-%Y %H:%M:%S'))
-            book_price = order[-1]['averageprice']
-        return book_price
-    
     def print(self) -> dict:
         pos = self.positions();resp = []
         for po in pos:
@@ -94,9 +83,10 @@ class OMS():
         return resp
     
     def placeOrder(self, position, transaction_type) -> bool:
+        logger.info(str(position))
         try:
             res = self.dhan.place_order(
-            security_id = position.security_id, 
+            security_id = str(position.security_id), 
             exchange_segment = self.dhan.NSE_FNO,
             transaction_type = transaction_type,
             quantity = abs(int(position.quantity)),
@@ -105,7 +95,7 @@ class OMS():
             price = 0
             )
             logger.info(f"OMS API execOrder response: {str(res)}")
-            print(res)
+            sleep(2)
             return True
         except Exception:
             logger.info(f"OMS API  Exception placeOrder response: {traceback.format_exc()}")
@@ -113,10 +103,8 @@ class OMS():
              
     def execOrder(self, position, transaction_type) -> bool:
         try:
-            res = 'OK'
-            # print('sample request: ', position)
+            # res = 'OK'
             res = self.placeOrder(position, transaction_type)
-            # sleep(1)
         except Exception:
             try:
                 self.refreshConnection('execOrder')
@@ -124,27 +112,6 @@ class OMS():
             except Exception:
                 logger.info(f"OMS API  Exception execOrder response: {traceback.format_exc()}")
         return res
-
-    def matchOrder(self, index, position, m_price, direction):
-        slab = 100 if index == "BANKNIFTY" else 50
-        strike = position.strikeprice; di = 1000;final_stike;final_scripCode;tradingSymbol=''
-        for idx in range(3):
-            strike = (strike + (slab*(idx + 1))) if direction == "UP" else (strike - (slab*(idx + 1)))
-            scripCode, symbol = util.getSymbolToken(index, strike, position.optiontype, position.expirydate)
-            n_price = self.optionPrice(scripCode)
-            dif = abs(n_price - m_price)
-            if dif < di: 
-                di = dif
-                final_stike = strike
-                final_scripCode = scripCode
-                tradingSymbol = symbol
-            else: 
-                position.strikeprice = float(final_stike)
-                position.symboltoken = final_scripCode
-                position.tradingSymbol = tradingSymbol
-                position.netprice = position.avgnetprice = position.ltp = n_price
-        return position, 
-
     def spotStrike(self, index):
         slab = 100 if index == "BANKNIFTY" else 50
         try:
@@ -181,39 +148,62 @@ class OMS():
         res = {'open': res['open'][0], 'high': max(res['high']), 
                'low': min(res['low']), 'close': res['close'][-1]}
         return res
-    
- 
-    def closeAllTrade(self, book):
-        for trd in book.trades: self.closeTrade(trd)
 
-    def closeTrade(self, trade):
-        flag = True
-        for pos in trade.positions:
-            if pos.position_type == 'SHORT':
-                res = self.execOrder(pos, "BUY")
-                if not res:
-                    flag = False
-                    break
-        if flag:
-            sleep(1)
-            for pos in trade.positions:
-                if pos.position_type == 'LONG':
-                    res = self.execOrder(pos, "SELL")
-                    logger.info(res)
-                    if not res:
-                        flag = False
-                        break
-        return flag
+    def CloseAllPositions(self, index=None):
+        logger.info(f"OMS Client: CloseAllPositions Starting...")
+        pos = self.positions()
+        pos = [po for po in pos if index is None or po.index == index]
+        self.ClosePositions(pos)
+        logger.info(f"OMS Client: CloseAllPositions Completed...")
+    
+    def ClosePositions(self, positions):
+        logger.info(f"OMS Client: ClosePositions Starting...")
+        for po in positions:
+            try:
+                transaction_type = 'BUY' if po.position_type == 'SHORT' else 'SELL'
+                self.execOrder(po, transaction_type)
+            except Exception:
+                logger.info(f"OMS Client: ClosePositions ex {traceback.format_exc()}")
+        logger.info(f"OMS Client: ClosePositions Completed...")
+        sleep(2)
+
+    def openPositions(self, positions):
+        logger.info(f"OMS Client: openPositions Starting...")
+        for po in positions:
+            try:
+                security_id = util.securityId(po.index, int(po.strike_price), po.option_type, 1)
+                po.security_id = security_id
+                transaction_type = 'SELL' if po.position_type == 'SHORT' else 'BUY'
+                self.execOrder(po, transaction_type)
+            except Exception:
+                logger.info(f"OMS Client: OpenPositions ex {traceback.format_exc()}")
+        logger.info(f"OMS Client: openPositions Completed...")
+        sleep(2)
     
 if __name__ == "__main__": 
-    tradingsymbol = 'NIFTY'  
-    oms = OMS()
-    # res = []
-    res = oms.price('NIFTY', True)
-    # pos = pos['data']
-    # for po in pos:
-        # if po['positionType'] != 'CLOSED': res.append(po)
-    print((json.dumps(res)))
+
+    # index = 'NIFTY'
+    index = 'BANKNIFTY'
+    orders = [
+        Position({'index': index, 'drvStrikePrice': 49900, 'drvOptionType': 'CE', 'positionType': 'LONG', 'netQty':  '90'}),
+        Position({'index': index, 'drvStrikePrice': 49400, 'drvOptionType': 'PE', 'positionType': 'LONG', 'netQty':  '90'}),
+        
+        Position({'index': index, 'drvStrikePrice': 49500, 'drvOptionType': 'CE', 'positionType': 'SHORT', 'netQty': '90'}),
+        # Position({'index': index, 'drvStrikePrice': 22400, 'drvOptionType': 'PE', 'positionType': 'LONG', 'netQty':  '50'}),
+        # Position({'index': index, 'drvStrikePrice': 22800, 'drvOptionType': 'PE', 'positionType': 'SHORT', 'netQty': '50'})
+    ]
+
+    oms = OMS_Client()
+    # res = oms.price('43694', False, True)
+    # res = oms.price(index, True)
+    # print(res)
+    
+    oms.openPositions(orders)
+    # exit(0)
+    # oms.ClosePositions(orders)
+    # oms.CloseAllPositions()
+    # oms.CloseAllPositions(index)
+    
     
     
 

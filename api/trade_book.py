@@ -2,6 +2,7 @@ import ast, traceback, numpy as np, json, pandas as pd, logging
 conf = json.load(open("./data/configuration.json"))
 from tabulate import tabulate, SEPARATING_LINE
 from datetime import datetime, time
+from time import sleep
 from vix import Vix
 from trade import Trade
 from utils import Utils
@@ -33,7 +34,7 @@ class TradeBook:
         self.finalRisk = conf["final_risk"]
         self.target = 0
         self.sl = 0
-        vix = oms.ohlc('INDIA VIX')
+        vix = oms.price('INDIA VIX')
         self.vix = Vix(vix)
         self.risk = conf["risk"]
         self.reward = conf["reward"]
@@ -54,7 +55,8 @@ class TradeBook:
                 self.totalTrades = self.totalTrades - 1
     
     def loadTrades(self, pos): 
-        dic_data = [];posList=pos.copy()
+        dic_data = [];
+        posList=pos.copy()
         s_ids = [x.security_id for x in pos]
         with open("./data/margin.txt", "r") as fileStore:
             dic_data = fileStore.readline()
@@ -63,9 +65,9 @@ class TradeBook:
                 dic_data = ast.literal_eval(dic_data)
         for idx in dic_data:
             idxPosList = [x for x in pos if x.index == idx]
-            index_data = dic_data[idx]['trades']
-            _copy = index_data.copy()
-            for _trd in index_data:
+            trade_data = dic_data[idx]['trades']
+            _copy = trade_data.copy()
+            for _trd in trade_data:
                 trd_pos = []
                 trd_flag = False
                 for _po in _trd['position']:
@@ -107,38 +109,45 @@ class TradeBook:
         self.closeTrades += 1
         self.trades.remove(trd)
         self.fundUpdate(trd)
-        time.sleep(conf["order_delay"])
+        sleep(conf["order_delay"])
 
-    def validateTrade(self, pos):
-        idxList = list(idx_list.keys())
-        ids = idxList.copy()
-        for trd in self.trades:
-            if trd.index in ids:
-                idxList.remove(trd.index)
-        ids = idxList.copy()
-        for idx in ids:
-            flag = True
-            for po in pos:
-                if idx == po.index:
-                    flag = False
-                    break
-            if flag: idxList.remove(idx)
-        return idxList
+    def validateTrade(self, index, pos):
+        s_id = []; _pos = pos.copy()
+        _pos = [x for x in _pos if x.index == index]
+        __pos = _pos.copy()
+        trades = [x for x in self.trades if x.index == index]
+        for trd in trades:
+            s_id += [po.security_id for po in trd.positions]
+
+        for po in __pos: 
+            if po.security_id in s_id: _pos.remove(po)
+        if _pos:
+            trade = Trade(_pos, index)
+            self.enterTrade(trade)
+
+        _pos_sec = [x.security_id for x in pos if x.index == index]
+        _trades = trades.copy()
+
+        for trd in _trades:
+            if trd.status == 'open':
+                _n_po = [po.security_id for po in trd.positions]
+                _n_po_delta = [i for i in _n_po if i not in _pos_sec]
+                if len(_n_po_delta) > 0:
+                    self.exitTrade(trd)
+
 
     def update(self):  # sourcery skip: low-code-quality
-        vix = oms.ohlc('INDIA VIX')
+        vix = oms.price('INDIA VIX')
         self.vix = Vix(vix)
         pos = oms.positions()
-        if len(self.trades) == 0: pos = self.loadTrades(pos)
-        pnl = 0.0
-        resp = self.validateTrade(pos)
-        if len(resp) > 0:
-            for idx in resp:
-                trade = Trade(pos, idx)
-                self.enterTrade(trade)
-        else:
-            for trd in self.trades: 
-                trd.update(pos)
+        if len(self.trades) == 0: 
+            pos = self.loadTrades(pos)
+        # tt = [td.index for td in self.trades if td.status == 'open']
+        idx = list(set([po.index for po in pos]))
+        if idx: 
+            for idx in idx: self.validateTrade(idx, pos)
+        for trd in self.trades: 
+            trd.update(pos)
         self.pnl = sum(trd.pnl for trd in self.trades if trd.status in ["open"])
         self.sl = sum(trd.sl for trd in self.trades if trd.status in ["open"])
         self.target = sum(float(trd.target) for trd in self.trades if trd.status in ["open"])
@@ -180,12 +189,14 @@ class TradeBook:
                 else: 
                     note.append(SEPARATING_LINE)
                     note = note + df.values.tolist()
-        dframe = tabulate(trade, trade_headers, tablefmt="rounded_outline", floatfmt=".2f")
-        logger.info('Trades response: ' + str(trade))
-        print(dframe)
-        dframe = tabulate(note, tablefmt="simple_outline", floatfmt=".2f")
-        logger.info('Notes response: ' + str(note))
-        print(dframe)
+        if len(trade) > 0:
+            dframe = tabulate(trade, trade_headers, tablefmt="rounded_outline", floatfmt=".2f")
+            logger.info('Trades response: ' + str(trade))
+            print(dframe)
+        if len(note) > 0:
+            dframe = tabulate(note, tablefmt="simple_outline", floatfmt=".2f")
+            logger.info('Notes response: ' + str(note))
+            print(dframe)
 
     def print(self):
         self.update()

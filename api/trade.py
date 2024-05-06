@@ -33,7 +33,7 @@ class Trade:
         self.margin = 0.0 if fund is None else fund
         self.status = "open"
         self.index = index
-        price = oms.ohlc(self.index, True)
+        price = oms.price(self.index, True)
         self.spot = price['close']
         self.move = float(self.spot) - float(price['open'])
         self.movePercent = self.move * 100 / float(self.spot)
@@ -45,9 +45,16 @@ class Trade:
         self.start = datetime.now().timestamp()
         self.positions = [pos for pos in positions]
         if len(self.positions) == 1: self.strategy = "buying"
+        self.straddle_price = 0
+        self.vwap = 0
+        self.sma_22 = 0
+        self.sma_44 = 0
+        self.ema_22 = 0
+        self.ema_44 = 0
+
 
     def updateIndex(self): 
-        price = oms.ohlc(self.index, True)
+        price = oms.price(self.index, True)
         self.spot = price['close']
         self.move = float(self.spot) - float(price['open'])
         self.movePercent = self.move * 100 / float(self.spot)
@@ -79,7 +86,7 @@ class Trade:
     def adjustLeg(self, position):   # sourcery skip: low-code-quality
         if self.status != "open":
             return -1
-        inxPrice = oms.ohlc(self.index, True)['close']# .dailyPrice(self.index)
+        inxPrice = oms.price(self.index, True)['close']# .dailyPrice(self.index)
         hitSide = position['optiontype']
         strikeCE=strikePE=hedgeCE=hedgePE=[]
         for pos in self.positions:
@@ -159,7 +166,6 @@ class Trade:
         self.pnlPercent = (self.pnl*100/float(self.margin)) if self.margin != 0.0 else 0.0
         if self.pnl > self.pnlMax or self.pnlMax == 0: self.pnlMax = self.pnl
         if self.pnl < self.pnlMin or self.pnlMin == 0: self.pnlMin = self.pnl
-        sleep(2)
         self.updateIndex()
 
         mins = int((datetime.now() - datetime.fromtimestamp(self.start)).total_seconds()/60)
@@ -174,8 +180,8 @@ class Trade:
             if sl > self.sl: self.sl = sl
         if self.pnl > 0:
             if self.pnl > 500 and self.sl < -1000: self.sl = -1000
-            if self.pnl > 1000 and self.sl < -500: self.sl = -500
-            if self.pnl > 1500 and self.sl < 500: self.sl = 500
+            if self.pnl > 1000 and self.sl < 500: self.sl = 500
+            if self.pnl > 1500 and self.sl < 1000: self.sl = 1000
             if self.pnl > 2000 and self.sl < 1500: self.sl = 1500
         # if mins > conf['timer4']:
         #     self.sl = self.pnl
