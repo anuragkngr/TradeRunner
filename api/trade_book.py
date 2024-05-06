@@ -71,6 +71,7 @@ class TradeBook:
                 trd_pos = []
                 trd_flag = False
                 for _po in _trd['position']:
+                    if trd_flag or _po['security_id'] not in s_ids: trd_flag = True
                     if not trd_flag and _po['security_id'] in s_ids:
                         for po in idxPosList:
                             if po.security_id == _po['security_id']:
@@ -81,7 +82,9 @@ class TradeBook:
                                     _copy.remove(_trd)
                                     trd_flag = True
                                     break
-                    if trd_flag: break
+                    if trd_flag: 
+                        _copy = []
+                        break
                 if not trd_flag:
                     _trade = Trade(trd_pos, idx, _trd['trade_id'])
                     self.enterTrade(_trade, _trd['margin'])
@@ -137,7 +140,7 @@ class TradeBook:
 
 
     def update(self):  # sourcery skip: low-code-quality
-        vix = oms.price('INDIA VIX')
+        vix = oms.price('INDIA VIX', True)
         self.vix = Vix(vix)
         pos = oms.positions()
         if len(self.trades) == 0: 

@@ -95,7 +95,7 @@ class OMS_Client():
             price = 0
             )
             logger.info(f"OMS API execOrder response: {str(res)}")
-            sleep(2)
+            sleep(0.4)
             return True
         except Exception:
             logger.info(f"OMS API  Exception placeOrder response: {traceback.format_exc()}")
@@ -130,6 +130,7 @@ class OMS_Client():
             exchange_segment = 'IDX_I'
         else: exchange_segment = 'NSE_FNO'
         try:
+             res = self.dhan.
             res = self.dhan.intraday_minute_data(
             security_id=security_id, exchange_segment=exchange_segment, instrument_type='OPTIDX')
         except Exception:

@@ -15,25 +15,20 @@ logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
+token_df = None
+url = 'https://images.dhan.co/api-data/api-scrip-master.csv'
+try:
+    token_df = pd.read_csv(f"./data/api-scrip-master{'_' + tm}.csv")
+except Exception:
+    token_df = pd.read_csv(url)
+    token_df = token_df[(token_df['SEM_INSTRUMENT_NAME'] == 'OPTIDX') | (token_df['SEM_INSTRUMENT_NAME'] == 'INDEX')]
+    token_df['SEM_EXPIRY_DATE'] = pd.to_datetime(token_df['SEM_EXPIRY_DATE'], format = 'mixed').apply(lambda x: x.date())
+    token_df['INDEX'] = [str(scrip).split('-')[0] for scrip in token_df['SEM_TRADING_SYMBOL']]
+    token_df.to_csv(f"./data/api-scrip-master{'_' + tm}.csv", index=False)
+
 class Utils:
-
     def __init__(self):
-        try:
-            self.master = pd.read_csv(f"./data/api-scrip-master{'_' + tm}.csv")
-        except:
-            url = 'https://images.dhan.co/api-data/api-scrip-master.csv'
-            token_df = pd.read_csv(url)
-            token_df = token_df[(token_df['SEM_INSTRUMENT_NAME'] == 'OPTIDX') | (token_df['SEM_INSTRUMENT_NAME'] == 'INDEX')]
-            token_df['SEM_EXPIRY_DATE'] = pd.to_datetime(token_df['SEM_EXPIRY_DATE'], format = 'mixed').apply(lambda x: x.date())
-            token_df['INDEX'] = [str(scrip).split('-')[0] for scrip in token_df['SEM_TRADING_SYMBOL']]
-            token_df.to_csv(f"./data/api-scrip-master{'_' + tm}.csv", index=False)
-            sleep(5)
-            self.master = pd.read_csv(f"./data/api-scrip-master{'_' + tm}.csv")
-
-    def getSymbolToken(self, index, strike, optiontype, expiry):
-        df = self.token_df[self.token_df['expiry'] == date(datetime.now().year, datetime.now().month, expiry)]
-        df = df[(df['strike'] == (strike*100) & (df['symbol'].str.endswith(optiontype)))]
-        return df['token'], df['symbol']
+        self.master = token_df
 
     def updateTrade(self, trd): 
         trd_data = {}
@@ -63,15 +58,6 @@ class Utils:
             print(traceback.format_exc())
             logger.error(f"trade book, updateTrade {traceback.format_exc()}")
 
-    def getDate(self):
-        return datetime.now().strftime("%d/%m/%Y")
-    def getTime(self):
-        return datetime.now().strftime("%H:%M:%S")
-    def getDateTime(self):
-        return datetime.now().strftime("%d/%m/%Y, %H:%M:%S %p")
-    def dictToDataFrame(self):
-        return datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-    
     def securityId(self, index, strike, option, exp_num=1):
         df = self.master
         exp = expiry[index][exp_num - 1]

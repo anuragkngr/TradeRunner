@@ -157,7 +157,7 @@ class OMS():
         return strike
     
     def price(self, security, isIndex=False, price=False):
-        security_id = security
+        security_id = security; res = None
         if isIndex: 
             security_id = idx_list[security]
             exchange_segment = 'IDX_I'
@@ -172,16 +172,13 @@ class OMS():
             # res = self.dhan.intraday_minute_data(
             # security_id=security_id, exchange_segment=exchange_segment, instrument_type='OPTIDX')
             return res['data'] 
-        
         if price: return res['data']
-
         res = res['data']
         if res == '': 
-            res = {'open': [12.10], 'high': [12.45], 'low': [12.02], 'close': [12.21]}
+            res = {'open': [-1], 'high': [-1], 'low': [-1], 'close': [-1]}
         res = {'open': res['open'][0], 'high': max(res['high']), 
                'low': min(res['low']), 'close': res['close'][-1]}
         return res
-    
  
     def closeAllTrade(self, book):
         for trd in book.trades: self.closeTrade(trd)
