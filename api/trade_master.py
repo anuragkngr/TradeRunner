@@ -27,8 +27,9 @@ if __name__ == "__main__":
         entry = True
         while True:
             trade_book.print()
+            # exit()
             rms.verify(trade_book)
-            sleep(30)
+            sleep(2)
             # sleep(conf["refresh_interval"])
     except Exception as e:
         print(traceback.format_exc())

@@ -115,7 +115,7 @@ class OMS():
     def execOrder(self, position, transaction_type) -> bool:
         order_online = conf['order_online']
         try:
-            if not order_online: res = 'OK'
+            if not order_online: res = False
             else: res = self.placeOrder(position, transaction_type)
             # print('sample request: ', position)
             # sleep(1)

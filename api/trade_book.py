@@ -68,13 +68,13 @@ class TradeBook:
                           'SENSEX': {'margin': 0, 'trades': []}, 'BANKEX': {'margin': 0, 'trades': []}}
         for idx in dic_data:
             idxPosList = [x for x in pos if x.index == idx]
-            trade_data = dic_data[idx]['trades']
-            _copy = trade_data.copy()
-            for _trd in trade_data:
+            idx_trades = dic_data[idx]['trades']
+            _copy_idx_trades = idx_trades.copy()
+            for idx_trd in idx_trades:
                 trd_pos = []
                 trd_flag = False
-                for _po in _trd['position']:
-                    if trd_flag or _po['security_id'] not in s_ids: trd_flag = True
+                for _po in idx_trd['position']:
+                    if _po['security_id'] not in s_ids: trd_flag = True
                     if not trd_flag and _po['security_id'] in s_ids:
                         for po in idxPosList:
                             if po.security_id == _po['security_id']:
@@ -82,16 +82,19 @@ class TradeBook:
                                     trd_pos.append(po)
                                     if po in posList: posList.remove(po)
                                 else:
-                                    _copy.remove(_trd)
+                                    # _copy_idx_trades.remove(idx_trd)
                                     trd_flag = True
                                     break
                     if trd_flag: 
-                        _copy = []
                         break
-                if not trd_flag:
-                    _trade = Trade(trd_pos, idx, _trd['trade_id'])
-                    self.enterTrade(_trade, _trd['margin'])
-            dic_data[idx]['trades'] = _copy
+                if trd_flag: 
+                    _copy_idx_trades.remove(idx_trd)
+                    break
+                        # _copy_idx_trades = []
+                else:
+                    _trade = Trade(trd_pos, idx, idx_trd['trade_id'])
+                    self.enterTrade(_trade, idx_trd['margin'])
+            dic_data[idx]['trades'] = _copy_idx_trades
         try:
             with open("./data/margin.txt", "w") as fileStore:
                 res = fileStore.write(str(dic_data))
@@ -118,28 +121,28 @@ class TradeBook:
         sleep(conf["order_delay"])
 
     def validateTrade(self, index, pos):
-        s_id = []; _pos = pos.copy()
-        _pos = [x for x in _pos if x.index == index]
-        __pos = _pos.copy()
-        trades = [x for x in self.trades if x.index == index]
-        for trd in trades:
-            s_id += [po.security_id for po in trd.positions]
+        s_id = [];
+        pos_idx = [x for x in pos if x.index == index]
+        copy_pos_idx = pos_idx.copy()
+        trades_idx = [x for x in self.trades if x.index == index]
+        for trd_idx in trades_idx:
+            s_id += [po.security_id for po in trd_idx.positions]
 
-        for po in __pos: 
-            if po.security_id in s_id: _pos.remove(po)
-        if _pos:
-            trade = Trade(_pos, index)
+        for i, po in enumerate(copy_pos_idx): 
+            if po.security_id in s_id: pos_idx.remove(po)
+        if pos_idx:
+            trade = Trade(pos_idx, index)
             self.enterTrade(trade)
 
-        _pos_sec = [x.security_id for x in pos if x.index == index]
-        _trades = trades.copy()
+        # trades = [x.security_id for x in pos if x.index == index]
+        # _trades = trades.copy()
 
-        for trd in _trades:
-            if trd.status == 'open':
-                _n_po = [po.security_id for po in trd.positions]
-                _n_po_delta = [i for i in _n_po if i not in _pos_sec]
-                if len(_n_po_delta) > 0:
-                    self.exitTrade(trd)
+        # for trd in _trades:
+        #     if trd.status == 'open':
+        #         _n_po = [po.security_id for po in trd.positions]
+        #         _n_po_delta = [i for i in _n_po if i not in _pos_sec]
+        #         if len(_n_po_delta) > 0:
+        #             self.exitTrade(trd)
 
 
     def update(self):  # sourcery skip: low-code-quality
