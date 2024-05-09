@@ -41,6 +41,7 @@ class OMS():
         try:
             if conf['mock']: res = json.load(open('./data/positions.json'))
             else : res = self.dhan.get_positions()
+            res = json.load(open('./data/positions.json'))
             logger.info(f"OMS API position response: {json.dumps(res)}")
         except Exception:
             logger.info(f"OMS API  Exception positions response: {traceback.format_exc()}")
@@ -112,10 +113,11 @@ class OMS():
             return False
              
     def execOrder(self, position, transaction_type) -> bool:
+        order_online = conf['order_online']
         try:
-            res = 'OK'
+            if not order_online: res = 'OK'
+            else: res = self.placeOrder(position, transaction_type)
             # print('sample request: ', position)
-            res = self.placeOrder(position, transaction_type)
             # sleep(1)
         except Exception:
             try:

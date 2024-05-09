@@ -42,21 +42,44 @@ class Utils:
                           'SENSEX': {'margin': 0, 'trades': []}, 'BANKEX': {'margin': 0, 'trades': []}}
         
         trades = trd_data[trd.index]['trades']
+        _trades = trades.copy()
+        flag = False
         if trades:
-            for t in trades:
+            flag = True
+            for t in _trades:
                 if t['trade_id'] == trd.trade_id:
                     trades.remove(t)
                     trades.append(trd.to_dict_obj())
                     #  trd_data[trd.index]['trades'][str(trd.trade_id)] = trd.to_dict_obj()
+                    flag = False
                     break
         else: trd_data[trd.index]['trades'].append(trd.to_dict_obj())
+        if flag: trd_data[trd.index]['trades'].append(trd.to_dict_obj())
         try:
             with open("./data/margin.txt", "w") as fileStore:
                 fileStore.write(str(trd_data))
                 fileStore.close()
+                self.updateTradeDetails(trd)                
         except Exception:
             print(traceback.format_exc())
             logger.error(f"trade book, updateTrade {traceback.format_exc()}")
+
+    def updateTradeDetails(self, trd):
+        trd_data = []
+        with open("./data/pnl.txt", "r") as fileStore:
+            trd_data = fileStore.readline()
+            fileStore.close()
+        if isinstance(trd_data, str) and trd_data.strip() != "": 
+            trd_data = ast.literal_eval(trd_data)
+        else: trd_data = []
+        for _trd in trd_data:
+            if _trd['trade_id'] == trd.trade_id:
+                trd['strategy'] = trd.strategy
+                trd['margin'] = trd.margin
+                trd['sl'] = trd.sl
+                trd['target'] = trd.target
+                
+        return None
 
     def securityId(self, index, strike, option, exp_num=1):
         df = self.master

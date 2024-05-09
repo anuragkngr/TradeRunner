@@ -62,7 +62,10 @@ class TradeBook:
             dic_data = fileStore.readline()
             fileStore.close()
         if isinstance(dic_data, str) and dic_data.strip() != "": 
-                dic_data = ast.literal_eval(dic_data)
+            dic_data = ast.literal_eval(dic_data)
+        else: dic_data = {'NIFTY': {'margin': 0, 'trades': []}, 'BANKNIFTY': {'margin': 0, 'trades': []}, 
+                          'FINNIFTY': {'margin': 0, 'trades': []}, 'NIFTYMCAP50': {'margin': 0, 'trades': []}, 
+                          'SENSEX': {'margin': 0, 'trades': []}, 'BANKEX': {'margin': 0, 'trades': []}}
         for idx in dic_data:
             idxPosList = [x for x in pos if x.index == idx]
             trade_data = dic_data[idx]['trades']
@@ -77,7 +80,7 @@ class TradeBook:
                             if po.security_id == _po['security_id']:
                                 if po.quantity == _po['quantity']:
                                     trd_pos.append(po)
-                                    posList.remove(po)
+                                    if po in posList: posList.remove(po)
                                 else:
                                     _copy.remove(_trd)
                                     trd_flag = True

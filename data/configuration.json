@@ -36,5 +36,6 @@
   "timer3": 120,
   "timer4": 240,
   "dhan_id": "1102738431",
-  "dhan_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzE2NDcwNjIwLCJ0b2tlbkNvbnN1bWVyVHlwZSI6IlNFTEYiLCJ3ZWJob29rVXJsIjoiIiwiZGhhbkNsaWVudElkIjoiMTEwMjczODQzMSJ9.3uIa34fFRk2iODrp7YnFUpnZ6s4G5tUnVOzUybaLZBOlpH--9MyVqtkyHV2jBj4DD8pUXNQRySHOaSK6FXxDtw"
+  "dhan_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzE2NDcwNjIwLCJ0b2tlbkNvbnN1bWVyVHlwZSI6IlNFTEYiLCJ3ZWJob29rVXJsIjoiIiwiZGhhbkNsaWVudElkIjoiMTEwMjczODQzMSJ9.3uIa34fFRk2iODrp7YnFUpnZ6s4G5tUnVOzUybaLZBOlpH--9MyVqtkyHV2jBj4DD8pUXNQRySHOaSK6FXxDtw",
+  "order_online": false
 }
