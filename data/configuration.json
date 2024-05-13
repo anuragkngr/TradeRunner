@@ -28,7 +28,7 @@
   "price_adjustment": 0.4,
   "final_risk": 0.03,
   "profit": 2199,
-  "loss": -3999,
+  "loss": -9000,
   "vix_alert": 0.05,
   "mock": false,
   "timer1": 30,
@@ -37,5 +37,5 @@
   "timer4": 240,
   "dhan_id": "1102738431",
   "dhan_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzE2NDcwNjIwLCJ0b2tlbkNvbnN1bWVyVHlwZSI6IlNFTEYiLCJ3ZWJob29rVXJsIjoiIiwiZGhhbkNsaWVudElkIjoiMTEwMjczODQzMSJ9.3uIa34fFRk2iODrp7YnFUpnZ6s4G5tUnVOzUybaLZBOlpH--9MyVqtkyHV2jBj4DD8pUXNQRySHOaSK6FXxDtw",
-  "order_online": false
+  "order_online": true
 }

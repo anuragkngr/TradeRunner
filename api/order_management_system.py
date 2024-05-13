@@ -6,6 +6,7 @@ conf = json.load(open("./data/configuration.json"))
 from time import sleep
 from dhanhq import dhanhq
 trade_headers=['SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED']
+trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET', 'FUND', 'MAX/MIN']
 idx_list = {'NIFTY': '13', 'BANKNIFTY': '25', 'FINNIFTY': '27', 'INDIA VIX': '21', 'NIFTYMCAP50': '20', 'BANKEX': '69', 'SENSEX': '51'}
 util = Utils()
 token_list = [{"exchangeType": 1, "tokens": ["26009"]}]
@@ -41,7 +42,7 @@ class OMS():
         try:
             if conf['mock']: res = json.load(open('./data/positions.json'))
             else : res = self.dhan.get_positions()
-            res = json.load(open('./data/positions.json'))
+            # res = json.load(open('./data/positions.json'))
             logger.info(f"OMS API position response: {json.dumps(res)}")
         except Exception:
             logger.info(f"OMS API  Exception positions response: {traceback.format_exc()}")

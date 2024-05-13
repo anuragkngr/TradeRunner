@@ -10,7 +10,7 @@ logging.basicConfig(
     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 from utils import Utils
-from vix import Vix
+from index import Index
 from position import Position
 from order_management_system import OMS
 oms = OMS()
@@ -18,7 +18,7 @@ util = Utils()
 
 class Trade: 
 
-    def __init__(self, positions, index=None, fund=None, trade_id=None):
+    def __init__(self, positions, index=None, trade_id=None):
         self.pnl = 0.0
         self.pnlMax = 0.0
         self.pnlMin = 0.0
@@ -30,13 +30,13 @@ class Trade:
         self.sl = conf["loss"]
         # fund_limit = conf["fund_limit"]
         lots = conf["lots"]
-        self.margin = 0.0 if fund is None else fund
+        self.margin = 0.0# if fund is None else fund
         self.status = "open"
         self.index = index
-        price = oms.price(self.index, True)
-        self.spot = price['close']
-        self.move = float(self.spot) - float(price['open'])
-        self.movePercent = self.move * 100 / float(self.spot)
+        # price = oms.price(self.index, True)
+        # self.spot = price['close']
+        # self.move = float(self.spot) - float(price['open'])
+        # self.movePercent = self.move * 100 / float(self.spot)
         # if self.index is None: self.index = util.getIndex(positions)
         quantity = 50 if self.index == "NIFTY" else 15 if self.index == "BANKNIFTY" else 40
         self.quantity = quantity * lots
@@ -115,11 +115,13 @@ class Trade:
     def print(self):
         return [
             {
-                1: f"{str(self.index)[:3] + ' ' + str(round(self.spot)) + ': (' + str(round(self.movePercent, 1)) + '%) ' + str(round(self.move))}",
-                2: f"{'P&L: ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",# Fund:' + str(round(self.margin))}",
-                3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
-                4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
-                5: f"{str(round(self.pnlMax)) + '(x)/' + str(round(self.pnlMin)) + '(n)'}",
+                1: f"{str(self.index)[:3] + ': ' + str(self.strategy)}",
+                2: f"{str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",# Fund:' + str(round(self.margin))}",
+                3: f"{str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
+                4: f"{str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
+                5: f"{str(self.margin)}",
+                6: f"{str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ''}",
+                
             }
         ]
     
@@ -151,7 +153,9 @@ class Trade:
         return resp
     
     def to_dict_obj(self) -> dict:
-        pos = self.positions;resp = {'margin': self.margin, 'trade_id': self.trade_id}
+        pos = self.positions;resp = {'margin': self.margin, 'trade_id': self.trade_id,
+                                     'strategy': self.strategy, 'sl': self.sl, 'target': self.target,
+                                     'max': self.pnlMax, 'min': self.pnlMin}
         pos = [x.to_dict() for x in pos]
         resp['position'] = pos
         return resp
@@ -167,6 +171,7 @@ class Trade:
         if self.pnl > self.pnlMax or self.pnlMax == 0: self.pnlMax = self.pnl
         if self.pnl < self.pnlMin or self.pnlMin == 0: self.pnlMin = self.pnl
         self.updateIndex()
+        util.updateTradeStats(self)
 
         mins = int((datetime.now() - datetime.fromtimestamp(self.start)).total_seconds()/60)
         if mins > conf['timer1']:

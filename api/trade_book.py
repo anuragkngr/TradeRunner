@@ -3,10 +3,10 @@ conf = json.load(open("./data/configuration.json"))
 from tabulate import tabulate, SEPARATING_LINE
 from datetime import datetime, time
 from time import sleep
-from vix import Vix
+from index import Index
 from trade import Trade
 from utils import Utils
-from order_management_system import OMS, idx_list, trade_headers
+from order_management_system import OMS, trade_headers, trade_columns
 oms = OMS()
 util = Utils()
 now = datetime.now()
@@ -34,8 +34,14 @@ class TradeBook:
         self.finalRisk = conf["final_risk"]
         self.target = 0
         self.sl = 0
-        vix = oms.price('INDIA VIX')
-        self.vix = Vix(vix)
+        spot = oms.price('INDIA VIX', True)
+        self.vix = Index(spot)
+        spot = oms.price('NIFTY', True)
+        self.nifty = Index(spot)
+        spot = oms.price('BANKNIFTY', True)
+        self.bank_nifty = Index(spot)
+        spot = oms.price('FINNIFTY', True)
+        self.fin_nifty = Index(spot)
         self.risk = conf["risk"]
         self.reward = conf["reward"]
 
@@ -82,7 +88,6 @@ class TradeBook:
                                     trd_pos.append(po)
                                     if po in posList: posList.remove(po)
                                 else:
-                                    # _copy_idx_trades.remove(idx_trd)
                                     trd_flag = True
                                     break
                     if trd_flag: 
@@ -90,7 +95,6 @@ class TradeBook:
                 if trd_flag: 
                     _copy_idx_trades.remove(idx_trd)
                     break
-                        # _copy_idx_trades = []
                 else:
                     _trade = Trade(trd_pos, idx, idx_trd['trade_id'])
                     self.enterTrade(_trade, idx_trd['margin'])
@@ -144,10 +148,18 @@ class TradeBook:
         #         if len(_n_po_delta) > 0:
         #             self.exitTrade(trd)
 
+    def updateIndex(self):
+        spot = oms.price('INDIA VIX', True)
+        self.vix = Index(spot)
+        spot = oms.price('NIFTY', True)
+        self.nifty = Index(spot)
+        spot = oms.price('BANKNIFTY', True)
+        self.bank_nifty = Index(spot)
+        spot = oms.price('FINNIFTY', True)
+        self.fin_nifty = Index(spot)
 
     def update(self):  # sourcery skip: low-code-quality
-        vix = oms.price('INDIA VIX', True)
-        self.vix = Vix(vix)
+        self.updateIndex()
         pos = oms.positions()
         if len(self.trades) == 0: 
             pos = self.loadTrades(pos)
@@ -196,34 +208,40 @@ class TradeBook:
                 if not note: 
                     note = df.values.tolist()
                 else: 
-                    note.append(SEPARATING_LINE)
+                    # note.append(SEPARATING_LINE)
                     note = note + df.values.tolist()
-        if len(trade) > 0:
-            dframe = tabulate(trade, trade_headers, tablefmt="rounded_outline", floatfmt=".2f")
-            logger.info('Trades response: ' + str(trade))
-            print(dframe)
         if len(note) > 0:
-            dframe = tabulate(note, tablefmt="simple_outline", floatfmt=".2f")
+            dframe = tabulate(note, trade_columns, tablefmt="simple_outline", floatfmt=".2f")
             logger.info('Notes response: ' + str(note))
             print(dframe)
+
+        dframe = tabulate(trade, trade_headers, tablefmt="rounded_outline", floatfmt=".2f")
+        logger.info('Trades response: ' + str(trade))
+        if self.openTrades == 1: print(dframe)
 
     def print(self):
         self.update()
         for _ in range(4): print()
-        self.printTrades()
+        # self.printTrades()
         if self.openTrades > 0:
             data = [
                 {
-                    1: f"{'VIX ' + str(round(self.vix.close, 2)) + ': (' + str(round(self.vix.movePercent, 2)) + '%) ' + str(round(self.vix.move, 2))}",
-                    2: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",# Fund=' + str(round(self.utilized))}",
-                    3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
-                    4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
-                    5: f"{str(round(self.pnlMax)) + '(x)/' + str(round(self.pnlMin)) + '(n)'}",
+                    1: f"{'VIX: ' + str(round(self.vix.spot, 2)) + ' (' + str(round(self.vix.move, 2)) + ')'}",
+                    2: f"{'NIFTY: ' + str(round(self.nifty.spot, 2)) + ' (' + str(round(self.nifty.move, 2)) + ')'}",
+                    3: f"{'BANKNIFTY: ' + str(round(self.bank_nifty.spot, 2)) + ' (' + str(round(self.bank_nifty.move, 2)) + ')'}",
+                    4: f"{'FINNIFTY: ' + str(round(self.fin_nifty.spot, 2)) + ' (' + str(round(self.fin_nifty.move, 2)) + ')'}",
+                },
+                {
+                    1: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",
+                    2: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
+                    3: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
+                    4: f"{'MAX/MIN: (' + str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ')'}",
                 }
             ]
             df = pd.DataFrame(data)
-            dframe = tabulate(df.values.tolist(), tablefmt="mixed_outline", floatfmt=".2f")
+            dframe = tabulate(df.values.tolist(), tablefmt="mixed_grid", floatfmt=".2f")
             print(dframe)
+            self.printTrades()
         
     def to_dict(self):
         return self.__dict__

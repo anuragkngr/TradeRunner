@@ -30,8 +30,29 @@ class Utils:
     def __init__(self):
         self.master = token_df
 
+    def updateTradeStats(self, trd): 
+        dict_trd = trd.to_dict_obj()
+        res = self.getTradeDetails(dict_trd['trade_id'])
+        if res is not None:
+            self.updateTradeDetails(dict_trd)
+
     def updateTrade(self, trd): 
-        trd_data = {}
+        trd_data = {}; dict_trd = trd.to_dict_obj()
+        res = self.getTradeDetails(dict_trd['trade_id'])
+        if res is None:
+            trade_details = {'index': 'NIFTY','trade_id': dict_trd['trade_id'], 
+                             'strategy': dict_trd['strategy'],'margin': dict_trd['margin'], 
+                             'sl': dict_trd['sl'],'target': dict_trd['target']}#,
+                            #  'max': dict_trd['pnlMax'],'min': dict_trd['pnlMin']}
+            self.updateTradeDetails(trade_details, True)
+        else:
+            trd.strategy = dict_trd['strategy'] = res['strategy']
+            trd.margin = dict_trd['margin'] = res['margin']
+            trd.sl = dict_trd['sl'] = res['sl']
+            trd.target = dict_trd['target'] = res['target']
+            trd.pnlMax = dict_trd['pnlMax'] = res['max']
+            trd.pnlMin = dict_trd['pnlMin'] = res['min']
+
         with open("./data/margin.txt", "r") as fileStore:
             trd_data = fileStore.readline()
             fileStore.close()
@@ -55,16 +76,16 @@ class Utils:
                     break
         else: trd_data[trd.index]['trades'].append(trd.to_dict_obj())
         if flag: trd_data[trd.index]['trades'].append(trd.to_dict_obj())
+
         try:
             with open("./data/margin.txt", "w") as fileStore:
                 fileStore.write(str(trd_data))
                 fileStore.close()
-                self.updateTradeDetails(trd)                
         except Exception:
             print(traceback.format_exc())
             logger.error(f"trade book, updateTrade {traceback.format_exc()}")
 
-    def updateTradeDetails(self, trd):
+    def getTradeDetails(self, trade_id):
         trd_data = []
         with open("./data/pnl.txt", "r") as fileStore:
             trd_data = fileStore.readline()
@@ -73,14 +94,37 @@ class Utils:
             trd_data = ast.literal_eval(trd_data)
         else: trd_data = []
         for _trd in trd_data:
-            if _trd['trade_id'] == trd.trade_id:
-                trd['strategy'] = trd.strategy
-                trd['margin'] = trd.margin
-                trd['sl'] = trd.sl
-                trd['target'] = trd.target
-                
-        return None
+            if _trd['trade_id'] == int(trade_id):
+                return _trd  
+        return None      
 
+    def updateTradeDetails(self, trade_details, add=False):
+        trd_data = []
+        with open("./data/pnl.txt", "r") as fileStore:
+            trd_data = fileStore.readline()
+            fileStore.close()
+        if isinstance(trd_data, str) and trd_data.strip() != "": 
+            trd_data = ast.literal_eval(trd_data)
+        else: trd_data = []
+        if add:
+            trd_data.append(trade_details)
+        else:
+            for trd in trd_data:
+                if trd['trade_id'] == trade_details['trade_id']:
+                    trd['strategy'] = trd.strategy
+                    trd['margin'] = trd.margin
+                    trd['sl'] = trd.sl
+                    trd['target'] = trd.target
+                    trd['max'] = trd.pnlMax
+                    trd['min'] = trd.pnlMin
+        try:
+            with open("./data/pnl.txt", "w") as fileStore:
+                fileStore.write(str(trd_data))
+                fileStore.close()              
+        except Exception:
+            print(traceback.format_exc())
+            logger.error(f"utils, updateTradeDetails {traceback.format_exc()}")
+                
     def securityId(self, index, strike, option, exp_num=1):
         df = self.master
         exp = expiry[index][exp_num - 1]

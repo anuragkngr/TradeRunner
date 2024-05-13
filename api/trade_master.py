@@ -1,4 +1,4 @@
-import traceback, json, logging,os
+import traceback, json, pandas as pd, logging,os
 conf = json.load(open("./data/configuration.json"))
 from datetime import datetime, time
 from time import sleep
@@ -29,7 +29,7 @@ if __name__ == "__main__":
             trade_book.print()
             # exit()
             rms.verify(trade_book)
-            sleep(2)
+            sleep(15)
             # sleep(conf["refresh_interval"])
     except Exception as e:
         print(traceback.format_exc())
