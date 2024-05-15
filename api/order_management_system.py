@@ -1,12 +1,13 @@
 from position import Position
 from utils import Utils
-import traceback, json, logging
+import traceback, json, logging, pandas_ta as ta, warnings, pandas as pd
 from datetime import datetime, time, timedelta
 conf = json.load(open("./data/configuration.json"))
 from time import sleep
 from dhanhq import dhanhq
-trade_headers=['SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED']
-trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET', 'FUND', 'MAX/MIN']
+warnings.filterwarnings('ignore')
+trade_headers=['SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED', 'OI', 'BUYING', 'SELLING']
+trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET', 'SWING']
 idx_list = {'NIFTY': '13', 'BANKNIFTY': '25', 'FINNIFTY': '27', 'INDIA VIX': '21', 'NIFTYMCAP50': '20', 'BANKEX': '69', 'SENSEX': '51'}
 util = Utils()
 token_list = [{"exchangeType": 1, "tokens": ["26009"]}]
@@ -36,13 +37,63 @@ class OMS():
             return True 
         except Exception: return False
 
+    def getIndicators(self, index, intShort=10, intLong=20):
+        try:
+            response = {}
+            # res = self.price(index, True, True)
+            # if conf['mock']: res = json.load(open('./data/market_feed.json'))
+            # else : rms = self.dhan.get_order_list()
+            res = json.load(open('./data/market_feed.json'))
+            temp = self.getIndicator(res, index, 'vwap', intShort)
+            response['vwap'] = temp
+            temp = self.getIndicator(res, index, 'sma', intShort, intLong)
+            response['sma'] = temp
+            temp = self.getIndicator(res, index, 'ema', intShort, intLong)
+            response['ema'] = temp
+            return response
+        except Exception: return None
+
+    def getIndicator(self, chart, index, indicator='vwap', interval=10, cross=0):
+        try:
+            df = pd.DataFrame(chart['data'])
+            tmp_list = []
+            for i in df["start_Time"]:
+                tmp = self.dhan.convert_to_date_time(i)
+                tmp_list.append(tmp)
+            df['date'] = tmp_list
+            df.set_index('date', inplace=True)
+            if indicator == 'vwap':
+                df['indicator'] = ta.vwap(df.high, df.low, df.close, df.volume)
+            if indicator == 'sma':
+                df['indicator'] = ta.sma(df.close, interval)
+                if cross > 0:
+                    df['indicator_2'] = ta.sma(df.close, cross)
+            if indicator == 'ema':
+                df['indicator'] = ta.ema(df.close, interval)
+                if cross > 0:
+                    df['indicator_2'] = ta.ema(df.close, cross)
+            df.reset_index(inplace=True)
+            # df['ema'] = ta.ema(df.close, 10, min_periods=1)
+            # df['a_vwap'] = ta.vwap(df.high, df.low, df.close, df.volume, anchor='D')
+            
+            if cross == 0: response = {'indicator': list(df.indicator)[-1]}
+            elif indicator in ['sma', 'ema']:
+                df['ind_1_above_2'] = (df["indicator"] >= df["indicator_2"]).astype(int)
+                df['ind_1_cross_2'] = df['ind_1_above_2'].diff().astype('Int64')
+                response = {'index': index, 'name': indicator, 'indicator': list(df.indicator)[-1], 
+                        'indicator_2': list(df.indicator_2)[-1], 'ind_1_cross_2': list(df.ind_1_cross_2)[-1]}
+            print(df)
+            return response
+        except Exception: return None
+
+
     def positions(self):
         sleep(1)
         res = {}; pos = []
         try:
-            if conf['mock']: res = json.load(open('./data/positions.json'))
-            else : res = self.dhan.get_positions()
-            # res = json.load(open('./data/positions.json'))
+            # if conf['mock']: res = json.load(open('./data/positions.json'))
+            # else : res = self.dhan.get_positions()
+            res = json.load(open('./data/positions.json'))
             logger.info(f"OMS API position response: {json.dumps(res)}")
         except Exception:
             logger.info(f"OMS API  Exception positions response: {traceback.format_exc()}")
@@ -65,18 +116,28 @@ class OMS():
             # rms = self.dhan.rmsLimit()['data']
         return {} if rms is None else rms
     
-    def orderBook(self, tradingsymbol):
+    def getOrderBook(self):
+        if conf['mock']: res = json.load(open('./data/order_book.json'))
+        else : res = self.dhan.get_order_list()
+        res = json.load(open('./data/order_book.json'))
+        logger.info(f"OMS API getOrderBook response: {json.dumps(res)}")
+        return None if res is None or res['data'] is None or res['data'] == '' else res['data']
+
+    def updateCostPrice(self, positions):
         sleep(1)
-        book_price = -1; book = []; order = []
-        if conf['mock']: book = json.load(open('./data/order_book.json'))['data']
-        else : book = self.dhan.orderBook()['data']
-        logger.info(f"OMS API orderBook response: {json.dumps(book)}")
-        if book:
-            for bb in book:
-                if bb['tradingsymbol'] == tradingsymbol: order.append(bb)
-            order = sorted(order, key=lambda x: datetime.strptime(x['exchtime'], '%d-%b-%Y %H:%M:%S'))
-            book_price = order[-1]['averageprice']
-        return book_price
+        res = self.getOrderBook()
+        for pos in positions:
+            self.updatePositionCostPrice(res, pos)
+        return positions
+    
+    def updatePositionCostPrice(self, res, pos):
+        for po in res:
+            transactionType = 'SHORT' if po['transactionType'] == 'SELL' else 'LONG'
+            if po['securityId'] == pos.security_id and pos.position_type == transactionType and pos.option_type == po['drvOptionType']:
+                pos.cost_price = po['price']
+                break
+            # order = sorted(order, key=lambda x: datetime.strptime(x['exchtime'], '%d-%b-%Y %H:%M:%S'))
+            # book_price = order[-1]['averageprice']
     
     def print(self) -> dict:
         pos = self.positions();resp = []
@@ -209,11 +270,13 @@ if __name__ == "__main__":
     tradingsymbol = 'NIFTY'  
     oms = OMS()
     # res = []
-    res = oms.price('NIFTY', True)
+    res = oms.getIndicators('BANKNIFTY')
+    print(res)
+    # res = oms.price('BANKNIFTY', True)
     # pos = pos['data']
     # for po in pos:
         # if po['positionType'] != 'CLOSED': res.append(po)
-    print((json.dumps(res)))
+    # print((json.dumps(res)))
     
     
 

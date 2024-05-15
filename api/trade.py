@@ -28,30 +28,32 @@ class Trade:
         self.step = conf["step"]
         self.target = conf["profit"]
         self.sl = conf["loss"]
-        # fund_limit = conf["fund_limit"]
         lots = conf["lots"]
         self.margin = 0.0# if fund is None else fund
         self.status = "open"
         self.index = index
-        # price = oms.price(self.index, True)
-        # self.spot = price['close']
-        # self.move = float(self.spot) - float(price['open'])
-        # self.movePercent = self.move * 100 / float(self.spot)
-        # if self.index is None: self.index = util.getIndex(positions)
         quantity = 50 if self.index == "NIFTY" else 15 if self.index == "BANKNIFTY" else 40
         self.quantity = quantity * lots
         self.strategy = 'selling'
         self.trade_id = str(round(datetime.now().timestamp())) if trade_id is None else trade_id
         self.start = datetime.now().timestamp()
-        self.positions = [pos for pos in positions]
+        self.positions = oms.updateCostPrice(positions)
         if len(self.positions) == 1: self.strategy = "buying"
-        self.straddle_price = 0
-        self.vwap = 0
-        self.sma_22 = 0
-        self.sma_44 = 0
-        self.ema_22 = 0
-        self.ema_44 = 0
-
+        indicators = oms.getIndicators(index)
+        res = util.read()
+        spot = oms.spotStrike(index)
+        security_ce = util.securityId(index, spot, 'CE')
+        security_pe = util.securityId(index, spot, 'PE')
+        ltp_ce = res[security_ce]['LTP'] if 'LTP' in res[security_ce] else 0
+        ltp_pe = res[security_pe]['LTP'] if 'LTP' in res[security_pe] else 0
+        self.straddle_price = float(ltp_ce) + float(ltp_pe)
+        self.vwap = indicators['vwap']['indicator']
+        self.sma_1 = indicators['sma']['indicator']
+        self.sma_2 = indicators['sma']['indicator_2']
+        self.sma_cross = indicators['sma']['ind_1_cross_2']
+        self.ema_1 = indicators['ema']['indicator']
+        self.ema_2 = indicators['ema']['indicator_2']
+        self.ema_cross = indicators['ema']['ind_1_cross_2']
 
     def updateIndex(self): 
         price = oms.price(self.index, True)
@@ -119,8 +121,8 @@ class Trade:
                 2: f"{str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",# Fund:' + str(round(self.margin))}",
                 3: f"{str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
                 4: f"{str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
-                5: f"{str(self.margin)}",
-                6: f"{str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ''}",
+                # 5: f"{str(self.margin)}",
+                5: f"{str(round(self.pnlMin)) + ' / ' + str(round(self.pnlMax)) + ''}",
                 
             }
         ]
@@ -135,27 +137,30 @@ class Trade:
         return json.loads(json.dumps(self.positions))
     
     def to_dict(self) -> dict:
-        pos = self.positions;resp = []
+        pos = self.positions;resp = []; res = util.read()
+        
         for po in pos:
+            if po.security_id in res:
+                ltp = res[po.security_id]
+            else: ltp = {'oi':0, 'total_buy_quantity':0, 'total_sell_quantity':0}
             res = {
-            # "INDEX": po.index,
             "SYMBOL": po.symbol,
-            # "SECURITY": po.security_id,
             "QUANTITY": po.quantity,
-            # "POSITION": po.position_type,
             "COST": po.cost_price,
             "PRICE": po.price,
             "P&L": po.pnl,
             "REALISED": po.realized,
             "UNREALIZED": po.unrealized,
+            "OI": round(int(ltp['oi'])/1000),
+            "BUYING": round(int(ltp['total_buy_quantity'])/1000),
+            "SELLING": round(int(ltp['total_sell_quantity'])/1000)
             }
             resp.append(res)
         return resp
     
     def to_dict_obj(self) -> dict:
-        pos = self.positions;resp = {'margin': self.margin, 'trade_id': self.trade_id,
-                                     'strategy': self.strategy, 'sl': self.sl, 'target': self.target,
-                                     'max': self.pnlMax, 'min': self.pnlMin}
+        pos = self.positions;resp = {'margin': self.margin, 'index': self.index, 'trade_id': self.trade_id,
+                                     'strategy': self.strategy, 'sl': self.sl, 'target': self.target}
         pos = [x.to_dict() for x in pos]
         resp['position'] = pos
         return resp
@@ -174,20 +179,28 @@ class Trade:
         util.updateTradeStats(self)
 
         mins = int((datetime.now() - datetime.fromtimestamp(self.start)).total_seconds()/60)
-        if mins > conf['timer1']:
-            sl = self.pnl - abs(self.pnl*0.75)
-            if sl > self.sl: self.sl = sl
-        if mins > conf['timer2']:
-            sl = self.pnl - abs(self.pnl*0.50)
-            if sl > self.sl: self.sl = sl
-        if mins > conf['timer3']:
-            sl = self.pnl - abs(self.pnl*0.25)
-            if sl > self.sl: self.sl = sl
+        # if mins > conf['timer1']:
+        #     sl = self.pnl - abs(self.pnl*0.75)
+        #     if sl > self.sl: self.sl = sl
+        # if mins > conf['timer2']:
+        #     sl = self.pnl - abs(self.pnl*0.50)
+        #     if sl > self.sl: self.sl = sl
+        # if mins > conf['timer3']:
+        #     sl = self.pnl - abs(self.pnl*0.25)
+        #     if sl > self.sl: self.sl = sl
         if self.pnl > 0:
-            if self.pnl > 500 and self.sl < -1000: self.sl = -1000
-            if self.pnl > 1000 and self.sl < 500: self.sl = 500
-            if self.pnl > 1500 and self.sl < 1000: self.sl = 1000
-            if self.pnl > 2000 and self.sl < 1500: self.sl = 1500
+            if self.pnl > 500 and self.sl < -1500: self.sl = -1500
+            # if self.pnl > 1000 and self.sl < 500: self.sl = 500
+            # if self.pnl > 2000 and self.sl < 1000: self.sl = 1000
+            if self.pnl > 1000 and self.sl < -1000: self.sl = -1000
+            if self.pnl > 2000 and self.sl < 0: self.sl = 0
+            if self.pnl > 2500 and self.sl < 500: self.sl = 500
+            # if self.pnl > 1500 and self.sl < 1000: self.sl = 1000
+            # if self.pnl > 2000 and self.sl < 1500: self.sl = 1500
+            if self.pnl > self.target:
+                sl = float(self.pnl) - float(float(self.pnl)*0.55)
+                logger.info(f"Trade, update Trade SL: {self.sl}, New SL: {sl}, self.pnl: {self.pnl}")
+                if sl > self.sl: self.sl = sl
         # if mins > conf['timer4']:
         #     self.sl = self.pnl
 

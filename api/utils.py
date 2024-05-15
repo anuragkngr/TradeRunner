@@ -2,11 +2,12 @@ import ast, traceback, json, pandas as pd, logging, os
 conf = json.load(open("./data/configuration.json"))
 from datetime import datetime, date
 from time import sleep
-expiry = {'NIFTY': ['2024-05-09', '2024-05-16', '2024-05-23', '2024-05-30', '2024-06-06'], 
-          'BANKNIFTY': ['2024-05-08', '2024-05-15', '2024-05-22', '2024-05-29', '2024-06-05'], 
-          'FINNIFTY': ['2024-05-07', '2024-05-14', '2024-05-21', '2024-05-28', '2024-06-04'], 
-          'SENSEX': ['2024-05-03', '2024-05-10', '2024-05-17', '2024-05-24', '2024-05-31'], 
-          'BANKEX': ['2024-05-06', '2024-05-13', '2024-05-17', '2024-05-27', '2024-06-03']}
+# from market_feed import read
+expiry = {'NIFTY': ['2024-05-16', '2024-05-23', '2024-05-30', '2024-06-06'], 
+          'BANKNIFTY': ['2024-05-15', '2024-05-22', '2024-05-29', '2024-06-05'], 
+          'FINNIFTY': ['2024-05-14', '2024-05-21', '2024-05-28', '2024-06-04'], 
+          'SENSEX': ['2024-05-10', '2024-05-17', '2024-05-24', '2024-05-31'], 
+          'BANKEX': ['2024-05-13', '2024-05-17', '2024-05-27', '2024-06-03']}
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 os.makedirs(f"./logs/{tm}", exist_ok=True)
@@ -34,24 +35,24 @@ class Utils:
         dict_trd = trd.to_dict_obj()
         res = self.getTradeDetails(dict_trd['trade_id'])
         if res is not None:
-            self.updateTradeDetails(dict_trd)
+            self.updateTradeDetails(res)
 
     def updateTrade(self, trd): 
         trd_data = {}; dict_trd = trd.to_dict_obj()
         res = self.getTradeDetails(dict_trd['trade_id'])
         if res is None:
-            trade_details = {'index': 'NIFTY','trade_id': dict_trd['trade_id'], 
+            trade_details = {'index': dict_trd['index'],'trade_id': dict_trd['trade_id'], 
                              'strategy': dict_trd['strategy'],'margin': dict_trd['margin'], 
                              'sl': dict_trd['sl'],'target': dict_trd['target']}#,
-                            #  'max': dict_trd['pnlMax'],'min': dict_trd['pnlMin']}
+                            #  'max': dict_trd['max'],'min': dict_trd['min']}
             self.updateTradeDetails(trade_details, True)
         else:
             trd.strategy = dict_trd['strategy'] = res['strategy']
             trd.margin = dict_trd['margin'] = res['margin']
             trd.sl = dict_trd['sl'] = res['sl']
             trd.target = dict_trd['target'] = res['target']
-            trd.pnlMax = dict_trd['pnlMax'] = res['max']
-            trd.pnlMin = dict_trd['pnlMin'] = res['min']
+            # trd.pnlMax = dict_trd['pnlMax'] = res['max']
+            # trd.pnlMin = dict_trd['pnlMin'] = res['min']
 
         with open("./data/margin.txt", "r") as fileStore:
             trd_data = fileStore.readline()
@@ -94,7 +95,7 @@ class Utils:
             trd_data = ast.literal_eval(trd_data)
         else: trd_data = []
         for _trd in trd_data:
-            if _trd['trade_id'] == int(trade_id):
+            if _trd['trade_id'] == trade_id:
                 return _trd  
         return None      
 
@@ -111,12 +112,12 @@ class Utils:
         else:
             for trd in trd_data:
                 if trd['trade_id'] == trade_details['trade_id']:
-                    trd['strategy'] = trd.strategy
-                    trd['margin'] = trd.margin
-                    trd['sl'] = trd.sl
-                    trd['target'] = trd.target
-                    trd['max'] = trd.pnlMax
-                    trd['min'] = trd.pnlMin
+                    trd['strategy'] = trade_details['strategy']
+                    trd['margin'] = trade_details['margin']
+                    trd['sl'] = trade_details['sl']
+                    trd['target'] = trade_details['target']
+                    # trd['max'] = trade_details['max']
+                    # trd['min'] = trade_details['min']
         try:
             with open("./data/pnl.txt", "w") as fileStore:
                 fileStore.write(str(trd_data))
@@ -130,9 +131,30 @@ class Utils:
         exp = expiry[index][exp_num - 1]
         df = df[(df['INDEX'] == index) & (df['SEM_OPTION_TYPE'] == option) & 
             (df['SEM_STRIKE_PRICE'] == strike) & (df['SEM_EXPIRY_DATE'] == exp)]
-        # print(df)
         return df['SEM_SMST_SECURITY_ID'].values[0] if len(df) == 1 else -1
 
+    def read(self):
+        try:
+            with open(f"./logs/{tm}/market_feed.txt", "r") as fileStore:
+                trd_data = fileStore.readline()
+                fileStore.close()
+                if isinstance(trd_data, str) and trd_data.strip() != "": 
+                    trd_data = ast.literal_eval(trd_data)
+        except Exception:
+            print(traceback.format_exc())
+            logger.error(f"Market Feed , read {traceback.format_exc()}")
+            try:
+                sleep(1)
+                with open(f"./logs/{tm}/market_feed.txt", "r") as fileStore:
+                    trd_data = fileStore.readline()
+                    fileStore.close()
+                    if isinstance(trd_data, str) and trd_data.strip() != "": 
+                        trd_data = ast.literal_eval(trd_data)
+            except Exception:
+                print(traceback.format_exc())
+                logger.error(f"Market Feed , read 2 {traceback.format_exc()}")
+        return trd_data
+    
 if __name__ == "__main__":
     print("Utils Processing")
     ut = Utils()

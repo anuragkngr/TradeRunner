@@ -1,50 +1,103 @@
-
+# import nest_asyncio
+# nest_asyncio.apply()
+# import asyncio
 from utils import Utils
-import json, pandas as pd
+import warnings
+warnings.filterwarnings('ignore')
+import json, pandas as pd, ast, traceback
 import pandas_ta as ta, logging
+from alphaVantageAPI.alphavantage import AlphaVantage
+import watchlist
 from datetime import datetime, time, timedelta
 conf = json.load(open("./data/configuration.json"))
+now = datetime.now()
+tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
+logging.basicConfig(
+    level=logging.INFO, filename=f"./logs/{tm}/application.log",
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger()
 from time import sleep
-from dhanhq import dhanhq
+from dhanhq import dhanhq, marketfeed
+from order_management_system import OMS
+oms = OMS()
 dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
-res = dhan.historical_daily_data(
-    symbol='TCS',
-    exchange_segment='NSE_EQ',
-    instrument_type='EQUITY',
-    expiry_code=0,
-    from_date='2024-06-05',
-    to_date='2024-06-01'
-)
-res = json.load(open('./data/historical_daily_data.json'))
+instruments = []#[(1, "1333"),(0,"13")]
+# subscription_code = marketfeed.Ticker
+subscription_code = marketfeed.Quote
+util = Utils()
+res = json.load(open('./data/market_feed.json'))
 df = pd.DataFrame(res['data'])
-# df['data'] = dhan.convert_to_date_time(df['start_Time'])
-# df = dropna(df)
 tmp_list = []
-for i in df['start_Time']:
+for i in df["start_Time"]:
     tmp = dhan.convert_to_date_time(i)
     tmp_list.append(tmp)
 df['date'] = tmp_list
-df['date'] = pd.to_datetime(df['date'])
 
-# df = dropna(df)
-# df_all = volume_weighted_average_price(high=df["high"], low=df['low'], close=df['close'], volume=df['volume'], window=14)
-print(df)
-# df_all.
+
+CommonStrategy = ta.CommonStrategy
+CommonStrategy = ta.AllStrategy
+print("name =", CommonStrategy.name)
+print("description =", CommonStrategy.description)
+print("created =", CommonStrategy.created)
+print("ta =", CommonStrategy.ta)
+
+custom_a = ta.Strategy(name="A", ta=[{"kind": "sma", "length": 50}, {"kind": "sma", "length": 200}])
+print(custom_a)
+
+def priceBankNifty(symbol = "25", from_d="2024-05-13"):
+        return dhan.intraday_minute_data(
+        security_id=symbol,
+        exchange_segment='IDX_I' if symbol == "BANKNIFTY" else "NSE_FNO",
+        instrument_type='INDEX' if symbol == "BANKNIFTY" else "OPTIDX",
+        # expiry_code=0,# if symbol == "BANKNIFTY" else expiry[symbol],
+        # from_date=from_d,
+        # to_date=datetime.now().strftime("%Y-%m-%d")
+        )
+
+custom_b = ta.Strategy(name="B", ta=[{"kind": "ema", "length": 8}, {"kind": "ema", "length": 21}, {"kind": "log_return", "cumulative": True}, {"kind": "rsi"}, {"kind": "supertrend"}])
+print(custom_b)
+
+# dhan.historical_daily_data('25','IDX_I',instrument_type,expiry_code,from_date,to_date)
+# res = priceBankNifty()
+# print(res)
+#DJZHJP90NULY10EW
 df.set_index('date', inplace=True)
-df['vwap'] = ta.overlap.vwap(df.high, df.low, df.close, df.volume)
-df.reset_index(inplace=True)
-print(df.to_markdown())
-# help(ta.vwap)
+df['vwap'] = ta.vwap(df.high, df.low, df.close, df.volume)
+df['sma_10'] = ta.sma(df.close, 10, min_periods=1)
+df['sma_20'] = ta.sma(df.close, 20, min_periods=1)
 
-def histPrice(self, index):
-        slab = 100 if index == "BANKNIFTY" else 50
-        historicParam={
-        "symbol": "NSE",
-        "exchange_segment": "3045",
-        "instrument_type": "THREE_MINUTE",
-        "expiry_code": 0,
-        "from_date": ((datetime.now()) + timedelta(days=-7)).strftime("%Y-%m-%d"),
-        "to_date": (datetime.now()).strftime("%Y-%m-%d")
-        }
-        res = self.dhan.historical_daily_data(historicParam)
-        return res   
+# df['ema_10'] = ta.ema(df.close, 10, min_periods=1)
+# df['ema_20'] = ta.ema(df.close, 20, min_periods=1)
+
+df['sma_10_above_20'] = (df["sma_10"] >= df["sma_20"]).astype(int)
+df['10_20_co'] = df['sma_10_above_20'].diff().astype('Int64')
+
+df.reset_index(inplace=True)
+print(df)
+print("Bullish crossovers")
+print(df.loc[df['10_20_co'] == 1])
+print("Bearish crossovers")
+print(df.loc[df['10_20_co'] == -1])
+
+# print(df)
+# print(help(ta.sma))
+# av = AlphaVantage(
+#     api_key="DJZHJP90NULY10EW", premium=False,
+#     output_size='full', clean=True,
+#     export_path=".", export=True
+# )
+
+# data_source = "av" # Default
+# data_source = "yahoo"
+# watch = watchlist(["SPY", "IWM"], ds_name=av, timed=False)
+# print(watch)
+# ta.VolumeWeightedAveragePrice(High=df['high'], Low=df['low'], Close=df['close'], Volume=df['volume'])
+
+# print(help(ta.sma)) 
+# d = df.close
+# d = df['close']
+# d = list(d)
+# # d = df['close'][-1]
+# # d = df.close[-1]
+# print(list(df.vwap)[-1])
+

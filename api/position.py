@@ -1,6 +1,9 @@
 import ast, logging, json, os
 from datetime import datetime, time
 from time import sleep
+from dhanhq import dhanhq
+conf = json.load(open("./data/configuration.json"))
+dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 os.makedirs(f"./logs/{tm}", exist_ok=True)
@@ -20,7 +23,6 @@ class Position:
         self.exchange_segment = pos["exchangeSegment"] if "exchangeSegment" in pos else 0
         self.product_type = pos["productType"] if "productType" in pos else 'MARGIN'
         self.cost_price = pos["costPrice"] if "costPrice" in pos else 0
-        # self.price = 0
         self.buy_avg = pos["buyAvg"] if "buyAvg" in pos else 0
         self.buy_qty = pos["buyQty"] if "buyQty" in pos else 0
         self.sell_avg = pos["sellAvg"] if "sellAvg" in pos else 0
@@ -56,7 +58,6 @@ class Position:
         self.position_type = pos.position_type if hasattr(pos, 'position_type') else '-'
         self.exchange_segment = pos.exchange_segment if hasattr(pos, 'exchange_segment') else '-'
         self.product_type = pos.product_type if hasattr(pos, 'product_type') else '-'
-        self.cost_price = pos.cost_price if hasattr(pos, 'cost_price') else 0
         self.buy_avg = pos.buy_avg if hasattr(pos, 'buy_avg') else 0
         self.buy_qty = pos.buy_qty if hasattr(pos, 'buy_qty') else 0
         self.sell_avg = pos.sell_avg if hasattr(pos, 'sell_avg') else 0

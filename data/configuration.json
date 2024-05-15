@@ -14,7 +14,7 @@
   "trade_time": "15:00",
   "exit_time": "15:25",
   "end_time": "23:30",
-  "refresh_interval": 4.5,
+  "refresh_interval": 15,
   "api_key": "BdOYJP9i",
   "secret_key": "73c5315c-b5c7-4409-8b4f-f1587de5817a",
   "user_id": "A58260556",
@@ -27,8 +27,8 @@
   "step": 0.2,
   "price_adjustment": 0.4,
   "final_risk": 0.03,
-  "profit": 2199,
-  "loss": -9000,
+  "profit": 3199,
+  "loss": -2999,
   "vix_alert": 0.05,
   "mock": false,
   "timer1": 30,
@@ -37,5 +37,5 @@
   "timer4": 240,
   "dhan_id": "1102738431",
   "dhan_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzE2NDcwNjIwLCJ0b2tlbkNvbnN1bWVyVHlwZSI6IlNFTEYiLCJ3ZWJob29rVXJsIjoiIiwiZGhhbkNsaWVudElkIjoiMTEwMjczODQzMSJ9.3uIa34fFRk2iODrp7YnFUpnZ6s4G5tUnVOzUybaLZBOlpH--9MyVqtkyHV2jBj4DD8pUXNQRySHOaSK6FXxDtw",
-  "order_online": true
+  "order_online": false
 }

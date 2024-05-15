@@ -2,6 +2,8 @@ import traceback, json, pandas as pd, logging,os
 conf = json.load(open("./data/configuration.json"))
 from datetime import datetime, time
 from time import sleep
+import warnings
+warnings.filterwarnings('ignore')
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 os.makedirs(f"./logs/{tm}", exist_ok=True)
@@ -29,8 +31,8 @@ if __name__ == "__main__":
             trade_book.print()
             # exit()
             rms.verify(trade_book)
-            sleep(15)
-            # sleep(conf["refresh_interval"])
+            # sleep(10)
+            sleep(conf["refresh_interval"])
     except Exception as e:
         print(traceback.format_exc())
         logger.error(f"Trade Master Exception response: ex {traceback.format_exc()}")

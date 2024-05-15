@@ -1,1 +1,1 @@
-[{'index': 'BANKNIFTY', 'trade_id': 1715581877, 'strategy': 'Bear Call Spread', 'margin': 140456.6, 'sl': -9001, 'target': 3998, 'max': -4352, 'min': -5972}]
+[{'index': 'NIFTY', 'trade_id': '1715695426', 'strategy': 'Long Strangle', 'margin': 113365.0, 'sl': -51999, 'target': 51199}, {'index': 'BANKNIFTY', 'trade_id': '1715761834', 'strategy': 'selling', 'margin': 110000.0, 'sl': -2999, 'target': 3199}]

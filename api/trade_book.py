@@ -40,8 +40,8 @@ class TradeBook:
         self.nifty = Index(spot)
         spot = oms.price('BANKNIFTY', True)
         self.bank_nifty = Index(spot)
-        spot = oms.price('FINNIFTY', True)
-        self.fin_nifty = Index(spot)
+        # spot = oms.price('FINNIFTY', True)
+        # self.fin_nifty = Index(spot)
         self.risk = conf["risk"]
         self.reward = conf["reward"]
 
@@ -51,7 +51,6 @@ class TradeBook:
         self.openTrades += 1
         self.fundUpdate(trd, fund)
         util.updateTrade(trd)
-        # trd.update()
 
     def clean(self):
         trds = self.trades
@@ -85,6 +84,7 @@ class TradeBook:
                         for po in idxPosList:
                             if po.security_id == _po['security_id']:
                                 if po.quantity == _po['quantity']:
+                                    po.cost_price = _po['cost_price']
                                     trd_pos.append(po)
                                     if po in posList: posList.remove(po)
                                 else:
@@ -138,16 +138,6 @@ class TradeBook:
             trade = Trade(pos_idx, index)
             self.enterTrade(trade)
 
-        # trades = [x.security_id for x in pos if x.index == index]
-        # _trades = trades.copy()
-
-        # for trd in _trades:
-        #     if trd.status == 'open':
-        #         _n_po = [po.security_id for po in trd.positions]
-        #         _n_po_delta = [i for i in _n_po if i not in _pos_sec]
-        #         if len(_n_po_delta) > 0:
-        #             self.exitTrade(trd)
-
     def updateIndex(self):
         spot = oms.price('INDIA VIX', True)
         self.vix = Index(spot)
@@ -155,8 +145,8 @@ class TradeBook:
         self.nifty = Index(spot)
         spot = oms.price('BANKNIFTY', True)
         self.bank_nifty = Index(spot)
-        spot = oms.price('FINNIFTY', True)
-        self.fin_nifty = Index(spot)
+        # spot = oms.price('FINNIFTY', True)
+        # self.fin_nifty = Index(spot)
 
     def update(self):  # sourcery skip: low-code-quality
         self.updateIndex()
@@ -201,7 +191,7 @@ class TradeBook:
                 if not trade: 
                     trade = df.values.tolist()
                 else: 
-                    trade.append(SEPARATING_LINE)
+                    # trade.append(SEPARATING_LINE)
                     trade = trade + df.values.tolist()
                 tmp = trd.print()
                 df = pd.DataFrame(tmp)
@@ -217,7 +207,7 @@ class TradeBook:
 
         dframe = tabulate(trade, trade_headers, tablefmt="rounded_outline", floatfmt=".2f")
         logger.info('Trades response: ' + str(trade))
-        if self.openTrades == 1: print(dframe)
+        if self.openTrades < 4: print(dframe)
 
     def print(self):
         self.update()
@@ -229,13 +219,13 @@ class TradeBook:
                     1: f"{'VIX: ' + str(round(self.vix.spot, 2)) + ' (' + str(round(self.vix.move, 2)) + ')'}",
                     2: f"{'NIFTY: ' + str(round(self.nifty.spot, 2)) + ' (' + str(round(self.nifty.move, 2)) + ')'}",
                     3: f"{'BANKNIFTY: ' + str(round(self.bank_nifty.spot, 2)) + ' (' + str(round(self.bank_nifty.move, 2)) + ')'}",
-                    4: f"{'FINNIFTY: ' + str(round(self.fin_nifty.spot, 2)) + ' (' + str(round(self.fin_nifty.move, 2)) + ')'}",
+                    # 4: f"{'FINNIFTY: ' + str(round(self.fin_nifty.spot, 2)) + ' (' + str(round(self.fin_nifty.move, 2)) + ')'}",
                 },
                 {
                     1: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",
                     2: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
                     3: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
-                    4: f"{'MAX/MIN: (' + str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ')'}",
+                    # 4: f"{'MAX/MIN: (' + str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ')'}",
                 }
             ]
             df = pd.DataFrame(data)
