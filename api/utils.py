@@ -1,15 +1,22 @@
 import ast, traceback, json, pandas as pd, logging, os
 conf = json.load(open("./data/configuration.json"))
+from pathlib import Path
 from datetime import datetime, date
 from time import sleep
+now = datetime.now()
+tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
+
+file_path = Path(f"./logs/{tm}/market_feed.txt")
+if not file_path.exists():
+    with open(f"./logs/{tm}/market_feed.txt", "w") as fileStore:
+        fileStore.close()
 # from market_feed import read
-expiry = {'NIFTY': ['2024-05-16', '2024-05-23', '2024-05-30', '2024-06-06'], 
-          'BANKNIFTY': ['2024-05-15', '2024-05-22', '2024-05-29', '2024-06-05'], 
+expiry = {'NIFTY': ['2024-05-23', '2024-05-30', '2024-06-06'], 
+          'BANKNIFTY': ['2024-05-22', '2024-05-29', '2024-06-05'], 
           'FINNIFTY': ['2024-05-14', '2024-05-21', '2024-05-28', '2024-06-04'], 
           'SENSEX': ['2024-05-10', '2024-05-17', '2024-05-24', '2024-05-31'], 
           'BANKEX': ['2024-05-13', '2024-05-17', '2024-05-27', '2024-06-03']}
-now = datetime.now()
-tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
+
 os.makedirs(f"./logs/{tm}", exist_ok=True)
 os.makedirs(f"./data/", exist_ok=True)
 logging.basicConfig(
@@ -134,6 +141,12 @@ class Utils:
         return df['SEM_SMST_SECURITY_ID'].values[0] if len(df) == 1 else -1
 
     def read(self):
+        for i in range(10):
+            res = self.readTry()
+            if res is not None: return res
+
+    def readTry(self):
+        trd_data = None
         try:
             with open(f"./logs/{tm}/market_feed.txt", "r") as fileStore:
                 trd_data = fileStore.readline()
@@ -143,17 +156,16 @@ class Utils:
         except Exception:
             print(traceback.format_exc())
             logger.error(f"Market Feed , read {traceback.format_exc()}")
-            try:
-                sleep(1)
-                with open(f"./logs/{tm}/market_feed.txt", "r") as fileStore:
-                    trd_data = fileStore.readline()
-                    fileStore.close()
-                    if isinstance(trd_data, str) and trd_data.strip() != "": 
-                        trd_data = ast.literal_eval(trd_data)
-            except Exception:
-                print(traceback.format_exc())
-                logger.error(f"Market Feed , read 2 {traceback.format_exc()}")
-        return trd_data
+        return trd_data if trd_data is None else json.loads(json.dumps(trd_data))
+    
+    def getDate(self):
+        return datetime.now().strftime("%d/%m/%Y")
+    def getTime(self):
+        return datetime.now().strftime("%H:%M:%S")
+    def getDateTime(self):
+        return datetime.now().strftime("%d/%m/%Y, %H:%M:%S %p")
+    def dictToDataFrame(self):
+        return datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
     
 if __name__ == "__main__":
     print("Utils Processing")

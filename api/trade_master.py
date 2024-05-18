@@ -26,11 +26,14 @@ if __name__ == "__main__":
     try:
         subject = "open-nifty-sic-10".upper()
         subs = subject.split('-') 
-        entry = True
-        while True:
+        while True:#util.getTime() > conf["start_time"] and util.getTime() < conf["end_time"]:
             trade_book.print()
-            # exit()
             rms.verify(trade_book)
+            if conf["intraday"] is True:
+                if util.getTime() > conf["exit_time"] and int(trade_book.openTrades) > 0:
+                    trade_book.exitTrades()
+                if util.getTime() > conf["final_sl"] and trade_book.finalFlag:
+                    trade_book.setFinalRisk()
             # sleep(10)
             sleep(conf["refresh_interval"])
     except Exception as e:

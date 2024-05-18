@@ -39,21 +39,6 @@ class Trade:
         self.start = datetime.now().timestamp()
         self.positions = oms.updateCostPrice(positions)
         if len(self.positions) == 1: self.strategy = "buying"
-        indicators = oms.getIndicators(index)
-        res = util.read()
-        spot = oms.spotStrike(index)
-        security_ce = util.securityId(index, spot, 'CE')
-        security_pe = util.securityId(index, spot, 'PE')
-        ltp_ce = res[security_ce]['LTP'] if 'LTP' in res[security_ce] else 0
-        ltp_pe = res[security_pe]['LTP'] if 'LTP' in res[security_pe] else 0
-        self.straddle_price = float(ltp_ce) + float(ltp_pe)
-        self.vwap = indicators['vwap']['indicator']
-        self.sma_1 = indicators['sma']['indicator']
-        self.sma_2 = indicators['sma']['indicator_2']
-        self.sma_cross = indicators['sma']['ind_1_cross_2']
-        self.ema_1 = indicators['ema']['indicator']
-        self.ema_2 = indicators['ema']['indicator_2']
-        self.ema_cross = indicators['ema']['ind_1_cross_2']
 
     def updateIndex(self): 
         price = oms.price(self.index, True)
@@ -137,12 +122,15 @@ class Trade:
         return json.loads(json.dumps(self.positions))
     
     def to_dict(self) -> dict:
-        pos = self.positions;resp = []; res = util.read()
+        pos = self.positions;resp = []; _res = util.read()
         
         for po in pos:
-            if po.security_id in res:
-                ltp = res[po.security_id]
+            if po.security_id in _res.keys():
+                ltp = _res[po.security_id]
             else: ltp = {'oi':0, 'total_buy_quantity':0, 'total_sell_quantity':0}
+            po.oi = round(int(ltp['oi'])/1000)
+            po.oi_buy = round(int(ltp['total_buy_quantity'])/1000)
+            po.oi_sell = round(int(ltp['total_sell_quantity'])/1000)
             res = {
             "SYMBOL": po.symbol,
             "QUANTITY": po.quantity,
@@ -151,9 +139,9 @@ class Trade:
             "P&L": po.pnl,
             "REALISED": po.realized,
             "UNREALIZED": po.unrealized,
-            "OI": round(int(ltp['oi'])/1000),
-            "BUYING": round(int(ltp['total_buy_quantity'])/1000),
-            "SELLING": round(int(ltp['total_sell_quantity'])/1000)
+            "OI": str(po.oi) + ' (' + str(po.oi - (po.init_oi if po.init_oi > 0 else po.oi)) + ')',
+            "OI_BUY": str(po.oi_buy) + ' (' + str(po.oi_buy - (po.init_oi_buy if po.init_oi_buy > 0 else po.oi_buy)) + ')',
+            "OI_SEL": str(po.oi_sell) + ' (' + str(po.oi_sell - (po.init_oi_sell if po.init_oi_sell > 0 else po.oi_sell)) + ')'
             }
             resp.append(res)
         return resp
@@ -189,16 +177,17 @@ class Trade:
         #     sl = self.pnl - abs(self.pnl*0.25)
         #     if sl > self.sl: self.sl = sl
         if self.pnl > 0:
-            if self.pnl > 500 and self.sl < -1500: self.sl = -1500
+            if self.pnl > 500 and self.sl < 200: self.sl = 200
             # if self.pnl > 1000 and self.sl < 500: self.sl = 500
             # if self.pnl > 2000 and self.sl < 1000: self.sl = 1000
-            if self.pnl > 1000 and self.sl < -1000: self.sl = -1000
-            if self.pnl > 2000 and self.sl < 0: self.sl = 0
-            if self.pnl > 2500 and self.sl < 500: self.sl = 500
+            if self.pnl > 1000 and self.sl < 800: self.sl = 800
+            if self.pnl > 2000 and self.sl < 2000: self.sl = 1800
+            # if self.pnl > 2500 and self.sl < 500: self.sl = 500
             # if self.pnl > 1500 and self.sl < 1000: self.sl = 1000
             # if self.pnl > 2000 and self.sl < 1500: self.sl = 1500
             if self.pnl > self.target:
-                sl = float(self.pnl) - float(float(self.pnl)*0.55)
+                # sl = float(self.pnl) - float(float(self.pnl)*0.20)
+                sl = float(self.pnl) - 200.0
                 logger.info(f"Trade, update Trade SL: {self.sl}, New SL: {sl}, self.pnl: {self.pnl}")
                 if sl > self.sl: self.sl = sl
         # if mins > conf['timer4']:

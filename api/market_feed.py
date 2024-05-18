@@ -2,7 +2,7 @@
 # nest_asyncio.apply()
 # import asyncio
 from utils import Utils
-import json, pandas as pd, ast, traceback
+import json, pandas as pd, ast, traceback, pymongo
 import pandas_ta as ta, logging, os
 from datetime import datetime
 conf = json.load(open("./data/configuration.json"))
@@ -10,6 +10,11 @@ now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 os.makedirs(f"./logs/{tm}", exist_ok=True)
 os.makedirs(f"./data/", exist_ok=True)
+client = pymongo.MongoClient(conf['db_url_lcl'])
+dblist = client.list_database_names()
+if "tradestore" in dblist:
+  print("The database exists.")
+mydb = client["tradestore"]
 with open(f"./logs/{tm}/market_feed.txt", "w") as fileStore:
     fileStore.close()
 logging.basicConfig(
@@ -45,6 +50,7 @@ for i in range(10):
 
 # instruments = [(1, '25')]
 print(instruments)
+# exit(0)
 
 async def on_connect(instance):
     print("Connected to websocket")

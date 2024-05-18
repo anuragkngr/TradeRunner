@@ -33,6 +33,12 @@ class Position:
         self.expiry_date = pos["drvExpiryDate"] if "drvExpiryDate" in pos else '-'
         self.option_type = pos["drvOptionType"] if "drvOptionType" in pos else 0
         self.strike_price = pos["drvStrikePrice"] if "drvStrikePrice" in pos else 0
+        self.oi = pos["oi"] if "oi" in pos else 0
+        self.oi_buy = pos["oi_buy"] if "oi_buy" in pos else 0
+        self.oi_sell = pos["oi_sell"] if "oi_sell" in pos else 0
+        self.init_oi = pos["init_oi"] if "init_oi" in pos else 0
+        self.init_oi_buy = pos["init_oi_buy"] if "init_oi_buy" in pos else 0
+        self.init_oi_sell = pos["init_oi_sell"] if "init_oi_sell" in pos else 0
 
         self.price = (float(self.unrealized)/abs(float(self.quantity)))
 
@@ -67,6 +73,11 @@ class Position:
         self.expiry_date = pos.expiry_date if hasattr(pos, 'expiry_date') else 0
         self.option_type = pos.option_type if hasattr(pos, 'option_type') else 0
         self.strike_price = pos.strike_price if hasattr(pos, 'strike_price') else 0
+
+        if self.init_oi == 0 and self.oi > 0:
+            self.init_oi = self.oi
+            self.init_oi_buy = self.oi_buy
+            self.init_oi_sell = self.oi_sell
 
         self.price = (float(self.unrealized)/abs(float(self.quantity)))
         if self.position_type == 'LONG':

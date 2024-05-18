@@ -44,22 +44,26 @@ print("ta =", CommonStrategy.ta)
 custom_a = ta.Strategy(name="A", ta=[{"kind": "sma", "length": 50}, {"kind": "sma", "length": 200}])
 print(custom_a)
 
-def priceBankNifty(symbol = "25", from_d="2024-05-13"):
-        return dhan.intraday_minute_data(
-        security_id=symbol,
-        exchange_segment='IDX_I' if symbol == "BANKNIFTY" else "NSE_FNO",
-        instrument_type='INDEX' if symbol == "BANKNIFTY" else "OPTIDX",
+def priceBankNifty(symbol = "13"):
+        
+    return dhan.intraday_minute_data(
+        security_id='25',
+        exchange_segment='IDX_I',
+        instrument_type='OPTIDX'
+    )
+# if symbol == "BANKNIFTY" else "OPTIDX",
         # expiry_code=0,# if symbol == "BANKNIFTY" else expiry[symbol],
         # from_date=from_d,
         # to_date=datetime.now().strftime("%Y-%m-%d")
-        )
+        # )
 
 custom_b = ta.Strategy(name="B", ta=[{"kind": "ema", "length": 8}, {"kind": "ema", "length": 21}, {"kind": "log_return", "cumulative": True}, {"kind": "rsi"}, {"kind": "supertrend"}])
 print(custom_b)
 
 # dhan.historical_daily_data('25','IDX_I',instrument_type,expiry_code,from_date,to_date)
-# res = priceBankNifty()
-# print(res)
+res = priceBankNifty()
+print(res)
+# exit(0)
 #DJZHJP90NULY10EW
 df.set_index('date', inplace=True)
 df['vwap'] = ta.vwap(df.high, df.low, df.close, df.volume)
