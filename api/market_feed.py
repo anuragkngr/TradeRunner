@@ -2,127 +2,165 @@
 # nest_asyncio.apply()
 # import asyncio
 from utils import Utils
-import json, pandas as pd, ast, traceback, pymongo
-import pandas_ta as ta, logging, os
+import json, traceback, pymongo, logging, os
+from pathlib import Path
 from datetime import datetime
+from time import sleep
+idx = ['13', '21', '25', '20', '51', '69']
+from dhanhq import dhanhq, marketfeed
+from order_management_system import OMS
 conf = json.load(open("./data/configuration.json"))
+dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
+
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 os.makedirs(f"./logs/{tm}", exist_ok=True)
 os.makedirs(f"./data/", exist_ok=True)
 client = pymongo.MongoClient(conf['db_url_lcl'])
 dblist = client.list_database_names()
-if "tradestore" in dblist:
-  print("The database exists.")
 mydb = client["tradestore"]
-with open(f"./logs/{tm}/market_feed.txt", "w") as fileStore:
-    fileStore.close()
-logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application.log",
-    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger()
-from time import sleep
-from dhanhq import dhanhq, marketfeed
-from order_management_system import OMS
-oms = OMS()
-dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
-instruments = []
+options = mydb["options"]
+feed = mydb["feed"]
+indexes = mydb["indexes"]
+# indexes.drop()
+# instruments = [(0, '13'), (0, '21'), (0, '25'), (0, '20'), (0, '51'), (0, '69')]
+instruments = [(0, '13'), (0, '21'), (0, '25')]
 subscription_code = marketfeed.Quote
+# subscription_code = marketfeed.Ticker
+oms = OMS() 
 util = Utils()
 
+file_path = Path(f"./logs/{tm}/market_feed.txt")
+if not file_path.exists():
+    with open(f"./logs/{tm}/market_feed.txt", "w") as fileStore:
+        fileStore.close()
+
+logging.basicConfig(
+    level=logging.INFO, filename=f"./logs/{tm}/market_feed.log",
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger()
+
+feed_ids = []
+
 index = 'NIFTY'; slab = 50; 
-strk = oms.spotStrike(index)
-for i in range(11):
-    instruments.append((2, str(util.securityId(index, (strk + (slab*i)), 'CE'))))
-    instruments.append((2, str(util.securityId(index, (strk + (slab*i)), 'PE'))))
-for i in range(10):
-    instruments.append((2, str(util.securityId(index, (strk - (slab*(i+1))), 'CE'))))
-    instruments.append((2, str(util.securityId(index, (strk - (slab*(i+1))), 'PE'))))
+strike = oms.spotStrike(index)
 
-index = 'BANKNIFTY'; slab = 100; 
-strk = oms.spotStrike(index)
-for i in range(11):
-    instruments.append((2, str(util.securityId(index, (strk + (slab*i)), 'CE'))))
-    instruments.append((2, str(util.securityId(index, (strk + (slab*i)), 'PE'))))
-for i in range(10):
-    instruments.append((2, str(util.securityId(index, (strk - (slab*(i+1))), 'CE'))))
-    instruments.append((2, str(util.securityId(index, (strk - (slab*(i+1))), 'PE'))))
+for i in range(12):
+    _strike = int(str(round(strike + (slab*i))))
+    out = util.securityId(index, _strike, 'CE')
+    if out is None: continue
+    security_id = out['s_id']
+    symbol = out['symbol']
+    instruments.append((2, security_id))
+    feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
 
-# instruments = [(1, '25')]
+    out = util.securityId(index, _strike, 'PE')
+    if out is None: continue
+    security_id = out['s_id']
+    symbol = out['symbol']
+    instruments.append((2, security_id))
+    feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
+
+i=0 
+for i in range(11):
+    _strike = int(str(round(strike - (slab*(i+1)))))
+    
+    out = util.securityId(index, _strike, 'CE')
+    if out is None: continue
+    security_id = out['s_id']
+    symbol = out['symbol']
+    instruments.append((2, security_id))
+    feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
+
+    out = util.securityId(index, _strike, 'PE')
+    if out is None: continue
+    security_id = out['s_id']
+    symbol = out['symbol']
+    instruments.append((2, security_id))
+    feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
+
+index = 'BANKNIFTY'; slab = 100; i=0 
+strike = oms.spotStrike(index)
+
+for i in range(12):
+    _strike = int(str(round(strike + (slab*i))))
+
+    out = util.securityId(index, _strike, 'CE')
+    if out is None: continue
+    security_id = out['s_id']
+    symbol = out['symbol']
+    instruments.append((2, security_id))
+    feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
+    
+
+    out = util.securityId(index, _strike, 'PE')
+    if out is None: continue
+    security_id = out['s_id']
+    symbol = out['symbol']
+    instruments.append((2, security_id))
+    feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
+
+i=0 
+for i in range(11):
+    _strike = int(str(round(strike - (slab*(i+1)))))
+    
+    out = util.securityId(index, _strike, 'CE')
+    if out is None: continue
+    security_id = out['s_id']
+    symbol = out['symbol']
+    instruments.append((2, security_id))
+    feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
+
+    out = util.securityId(index, _strike, 'PE')
+    if out is None: continue
+    security_id = out['s_id']
+    symbol = out['symbol']
+    instruments.append((2, security_id))
+    feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
+# instruments = [(0, '13'), (0, '25'), (2, '38730'), (2, '46923')]
+instruments = instruments + [(2, '37758'), (2, '37051'), (2, '43889'), (2, '56914')]
+# instruments = [(2, '43889'), (2, '37051')]
+# 37758
+print(len(feed_ids))
+print(len(instruments))
 print(instruments)
-# exit(0)
+
+feed.delete_many({})
+res = feed.insert_many(feed_ids)
 
 async def on_connect(instance):
     print("Connected to websocket")
 
 async def on_message(instance, message):
     print("Received:", message)
-    saveData(message)
+    try:
+        saveData(message)
+    except Exception:
+            print(traceback.format_exc())
+            logger.error(f"market_feed , on_message message: {message} {traceback.format_exc()}")
+            sleep(2)
 
 def saveData(message):
-    writeFlag = True
-    security_id = message['security_id']
-    if security_id is None: return
-    security_id = str(security_id)
-    trd_data = read()
-    if trd_data is None or trd_data == '': trd_data = {}
-    # print(type(trd_data[0]))
-    # print(type(security_id))
-    if security_id in trd_data:
-        if message['type'] == 'Quote Data':
-            msg = trd_data[security_id]
-            oi = msg['oi'] if 'oi' in msg else 0
-            message['oi'] = oi
-        else:
-            msg = trd_data[security_id]
-            msg['oi'] = message['OI']
-            message = msg
+
+    db_obj = indexes if message['exchange_segment'] == 0 else options
+        
+    if message['type'] == 'Quote Data':
+        message['LTT'] = util.getDate() + ' ' + message['LTT'][:-3] + ':00'
+        res = db_obj.find_one_and_update(
+                { "security_id" : message['security_id'], "LTT" : message['LTT'] },
+                { "$set": message },
+                { "sort": { "_id" : 1 } },
+                upsert=True
+            )
     else:
-        if message['type'] == 'Quote Data':
-            message['OI'] = 0
-        else: writeFlag = False
-    trd_data[security_id] = message
-    if writeFlag: write(trd_data)
+        if 'OI' in message : message['oi'] = message['OI']
+        res = db_obj.find_one_and_update(
+                { "security_id" : message['security_id'] },
+                { "$set": message },
+                { "sort": { "_id" : 1 } },
+                upsert=True
+            )
     
-def read():
-    trd_data = None
-    try:
-        with open(f"./logs/{tm}/market_feed.txt", "r") as fileStore:
-            trd_data = fileStore.readline()
-            fileStore.close()
-            if isinstance(trd_data, str) and trd_data.strip() != "": 
-                trd_data = ast.literal_eval(trd_data)
-    except Exception:
-        print(traceback.format_exc())
-        logger.error(f"Market Feed , read {traceback.format_exc()}")
-        try:
-            sleep(1)
-            with open(f"./logs/{tm}/market_feed{tm}.txt", "r") as fileStore:
-                trd_data = fileStore.readline()
-                fileStore.close()
-                if isinstance(trd_data, str) and trd_data.strip() != "": 
-                    trd_data = ast.literal_eval(trd_data)
-        except Exception:
-            print(traceback.format_exc())
-            logger.error(f"Market Feed , read 2 {traceback.format_exc()}")
-    return trd_data
-    
-def write(trd_data):
-    try:
-        with open(f"./logs/{tm}/market_feed.txt", "w") as fileStore:
-            fileStore.write(str(trd_data))
-            fileStore.close()
-    except Exception:
-        print(traceback.format_exc())
-        logger.error(f"Market Feed , write {traceback.format_exc()}")
-        try:
-            sleep(1)
-            with open(f"./logs/{tm}/market_feed.txt", "w") as fileStore:
-                fileStore.write(str(trd_data))
-                fileStore.close()
-        except Exception:
-            print(traceback.format_exc())
-            logger.error(f"Market Feed , write 2 {traceback.format_exc()}")
 feed = marketfeed.DhanFeed(conf['dhan_id'],
     conf['dhan_token'],
     instruments,

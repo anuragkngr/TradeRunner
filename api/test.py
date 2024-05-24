@@ -6,8 +6,8 @@ import warnings
 warnings.filterwarnings('ignore')
 import json, pandas as pd, ast, traceback
 import pandas_ta as ta, logging
-from alphaVantageAPI.alphavantage import AlphaVantage
-import watchlist
+# from alphaVantageAPI.alphavantage import AlphaVantage
+# import watchlist
 from datetime import datetime, time, timedelta
 conf = json.load(open("./data/configuration.json"))
 now = datetime.now()
@@ -63,6 +63,7 @@ print(custom_b)
 # dhan.historical_daily_data('25','IDX_I',instrument_type,expiry_code,from_date,to_date)
 res = priceBankNifty()
 print(res)
+exit(0)
 # exit(0)
 #DJZHJP90NULY10EW
 df.set_index('date', inplace=True)

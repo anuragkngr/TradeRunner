@@ -1,12 +1,21 @@
 from position import Position
 from utils import Utils
-import traceback, json, logging, pandas_ta as ta, warnings, pandas as pd
+import traceback, json, logging, pandas_ta as ta, warnings, pandas as pd, pymongo
 from datetime import datetime
 conf = json.load(open("./data/configuration.json"))
 from time import sleep
 from dhanhq import dhanhq
+client = pymongo.MongoClient(conf['db_url_lcl'])
+dblist = client.list_database_names()
+if "tradestore" in dblist:
+  print("The database exists.")
+mydb = client["tradestore"]
+options = mydb["options"]
+indexes = mydb["indexes"]
+oi = mydb["open_interest"]
+
 warnings.filterwarnings('ignore')
-trade_headers=['SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED', 'OI', 'OI_BUY', 'OI_SEL']
+trade_headers=['SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED', 'OI', 'BUY', 'SEL']
 trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET', 'SWING']
 idx_list = {'NIFTY': '13', 'BANKNIFTY': '25', 'FINNIFTY': '27', 'INDIA VIX': '21', 'NIFTYMCAP50': '20', 'BANKEX': '69', 'SENSEX': '51'}
 fut_list = {'NIFTY': '46930', 'BANKNIFTY': '46923'}
@@ -38,27 +47,20 @@ class OMS():
             return True 
         except Exception: return False
 
-    def getIndicators(self, index, intShort=None, intLong=None):
+    def getIndicators(self, index):
         try:
             response = {}
             res = self.price(fut_list[index], False, True, 'FUTIDX')
-            # if conf['mock']: res = json.load(open(f'./logs/{tm}/market_feed.json'))
-            # else : res = self.dhan.get_order_list()
-            # res = json.load(open(f'./logs/{tm}/market_feed.json'))
-            if intShort is None:
-                intShort = len(res['close']) - 1
-            if intLong is None:
-                intLong = int(intShort/2)
-            # temp = self.getIndicator(res, index, 'vwap', intShort)
-            # response['vwap'] = temp
-            temp = self.getIndicator(res, index, 'sma', intShort, intLong)
+            temp = self.getIndicator(res, index, 'vwap')
+            response['vwap'] = temp
+            temp = self.getIndicator(res, index, 'sma')
             response['sma'] = temp
-            temp = self.getIndicator(res, index, 'ema', intShort, intLong)
+            temp = self.getIndicator(res, index, 'ema')
             response['ema'] = temp
             return response
         except Exception: return None
 
-    def getIndicator(self, chart, index, indicator='vwap', interval=None, cross=None):
+    def getIndicator(self, chart, index, indicator='vwap'):
         try:
             df = pd.DataFrame(chart)
             tmp_list = []
@@ -67,32 +69,40 @@ class OMS():
                 tmp_list.append(tmp)
             df['date'] = tmp_list
             df.set_index('date', inplace=True)
-            if interval is None:
-                interval = len(df.close) - 1
-            if cross is None:
-                cross = int(interval/2)
+            slow = len(df.close) - 1
+            fast = int(slow/2)
             if indicator == 'vwap':
-                df['indicator'] = ta.vwap(df.high, df.low, df.close, df.volume)
+                var = df['indicator'] = ta.vwap(df['high'], df['low'], df['close'], df['volume'])
+                response = {'indicator': list(df['indicator'])[-1]}
+                # print(var)
             if indicator == 'sma':
-                df['indicator'] = ta.sma(df.close, interval)
-                if cross > 0:
-                    df['indicator_2'] = ta.sma(df.close, cross)
+                var = df['indicator'] = ta.sma(df['close'], fast)
+                # print(var)
+                if slow > 0:
+                    var = df['indicator_2'] = ta.sma(df['close'], slow)
+                    # print(var)
             if indicator == 'ema':
-                df['indicator'] = ta.ema(df.close, interval)
-                if cross > 0:
-                    df['indicator_2'] = ta.ema(df.close, cross)
+                var = df['indicator'] = ta.ema(df['close'], fast)
+                # print(var)
+                if slow > 0:
+                    var = df['indicator_2'] = ta.ema(df['close'], slow)
+                    # print(var)
             df.reset_index(inplace=True)
             # df['ema'] = ta.ema(df.close, 10, min_periods=1)
             # df['a_vwap'] = ta.vwap(df.high, df.low, df.close, df.volume, anchor='D')
             
-            if cross == 0: response = {'indicator': list(df.indicator)[-1]}
-            elif indicator in ['sma', 'ema']:
-                df['ind_1_above_2'] = (df["indicator"] >= df["indicator_2"]).astype(int)
-                df['ind_1_cross_2'] = df['ind_1_above_2'].diff().astype('Int64')
-                response = {'index': index, 'name': indicator, 'indicator': list(df.indicator)[-1], 
-                        'indicator_2': list(df.indicator_2)[-1], 'ind_1_cross_2': list(df.ind_1_cross_2)[-1]}
-            # if indicator in ['sma']:
-            #     print(list(df.ind_1_cross_2))
+            # if cross == 0: response = {'indicator': list(df['indicator'])[-1]}
+            if indicator in ['sma', 'ema']:
+                df['ind_1_above_2'] = (df["indicator"] > df["indicator_2"]).astype(int)
+                # df['ind_1_cross_2'] = df['ind_1_above_2'].diff().astype('Int64')
+
+                df['ind_2_above_1'] = (df["indicator_2"] > df["indicator"]).astype(int)
+                # df['ind_2_cross_1'] = df['ind_2_above_1'].diff().astype('Int64')
+
+                response = {'index': index, 'name': indicator, 'indicator': list(df['indicator'])[-1], 
+                        'indicator_2': list(df['indicator_2'])[-1], 'ind_1_above_2': list(df['ind_1_above_2'])[-1], 
+                        # 'ind_2_cross_1': list(df['ind_1_cross_2'][-1]), 'ind_1_cross_2': list(df['ind_1_cross_2'][-1]),
+                        'ind_2_above_1': list(df['ind_2_above_1'])[-1]}
             return response
         except Exception: return None
 
@@ -110,7 +120,7 @@ class OMS():
             self.refreshConnection('positions')
             # res = self.dhan.get_positions()
         for po in res['data'] :
-            if po["positionType"] not in ['CLOSED'] and po['securityId'] not in ['55116', '71302']:
+            if po["positionType"] not in ['CLOSED']:
                 pos.append(Position(po))
         return [] if not pos else pos
     
@@ -222,14 +232,24 @@ class OMS():
     def spotStrike(self, index):
         slab = 100 if index == "BANKNIFTY" else 50
         try:
-            spot = self.price(index, True)
+            spot_price = self.Price_DB(index)
+            if not spot_price: spot_price = self.price(index, True)
         except Exception:
             logger.info(f"Positions API  Exception rmsLimit response: {traceback.format_exc()}")
             self.refreshConnection('spotStrike')
-        spot = float(spot['close']) if 'close' in spot else -1
-        strike = round(spot / slab) * slab
+        spot_price = float(spot_price['close']) if 'close' in spot_price else -1
+        strike = round(spot_price / slab) * slab
         return strike
-    
+
+    def Price_DB(self, security):
+        res=[]
+        if security.isnumeric():
+            if security < 1000:
+                res = indexes.find_one({'security_id': security}, sort=[('_id', -1)])
+            else : res = options.find_one({'security_id': security}, sort=[('_id', -1)])
+        else: res = indexes.find_one({'security_id': int(idx_list[security])}, sort=[('_id', -1)])
+        return res
+
     def price(self, security, isIndex=False, price=False, instrument_type='OPTIDX'):
         security_id = security; res = None
         if isIndex: 
@@ -240,7 +260,7 @@ class OMS():
             
             res = self.dhan.intraday_minute_data(
             security_id=security_id, exchange_segment=exchange_segment, instrument_type=instrument_type)
-            logger.info(f"OMS API price price response: {json.dumps(res)}")
+            # logger.info(f"OMS API price price response: {json.dumps(res)}")
         except Exception:
             logger.info(f"OMS API  Exception price response: {traceback.format_exc()}")
             self.refreshConnection('price')
@@ -281,7 +301,28 @@ class OMS():
 if __name__ == "__main__": 
     tradingsymbol = 'NIFTY'  
     oms = OMS()
-    res = oms.price('BANKNIFTY', True, True)
+    oms = OMS()
+    index = 'NIFTY'
+    res = oms.getIndicators(index)
+    print(res)
+    exit()
+    res = oms.price(fut_list[index], False, True, 'FUTIDX')
+    # res = options.find_one({'security_id': 43889})
+    df = pd.DataFrame(res)
+    tmp_list = []
+    for i in df["start_Time"]:
+        tmp = oms.dhan.convert_to_date_time(i)
+        tmp_list.append(tmp)
+    df['date'] = tmp_list
+    df.set_index('date', inplace=True)
+    df['indicator'] = ta.vwap(df['high'], df['low'], df['close'], df['volume'])
+    df.reset_index(inplace=True)
+    print(df)
+    exit()
+    res = oms.getIndicators(tradingsymbol)
+    # res = oms.price('46923', False, True, instrument_type='FUTIDX')
+    # res = oms.price('46923', False, True, instrument_type='OPTIDX')
+    # res = oms.price('BANKNIFTY', True, True)
     # res = []
     # res = oms.getIndicators('BANKNIFTY')
     print(res)

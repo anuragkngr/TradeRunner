@@ -1,4 +1,4 @@
-import ast, traceback, numpy as np, json, logging, pandas as pd
+import ast, traceback, numpy as np, json, logging, pandas as pd, pymongo
 conf = json.load(open("./data/configuration.json"))
 from tabulate import tabulate, SEPARATING_LINE
 from datetime import datetime, time
@@ -15,7 +15,11 @@ from position import Position
 from order_management_system import OMS
 oms = OMS()
 util = Utils()
-
+client = pymongo.MongoClient(conf['db_url_lcl'])
+dblist = client.list_database_names()
+mydb = client["tradestore"]
+trades = mydb["trades"]
+options = mydb["options"]
 class Trade: 
 
     def __init__(self, positions, index=None, trade_id=None):
@@ -38,13 +42,32 @@ class Trade:
         self.trade_id = str(round(datetime.now().timestamp())) if trade_id is None else trade_id
         self.start = datetime.now().timestamp()
         self.positions = oms.updateCostPrice(positions)
-        if len(self.positions) == 1: self.strategy = "buying"
+        buying_positions = [p.price for p in self.positions if p.position_type == 'LONG']
+        buying_count = len(buying_positions) if buying_positions is not None else 0
+        buying_sum = sum(p.price for p in self.positions if p.position_type == 'LONG')
+
+        selling_positions = [p.price for p in self.positions if p.position_type == 'SHORT']
+        selling_count = len(selling_positions) if selling_positions is not None else 0
+        selling_sum = sum(p.price for p in self.positions if p.position_type == 'SHORT')
+
+        if buying_sum > selling_sum:
+            self.strategy = 'Buying (b=' + str(buying_count) + ', s=' + str(selling_count) + ')'
+        else:
+            self.strategy = 'Selling (b=' + str(buying_count) + ', s=' + str(selling_count) + ')'
+
+        self.updateTrade()
+        util.addTradeStats({'index': self.index, 'trade_id': self.trade_id, 
+                    'sl': self.sl, 'target': self.target})
 
     def updateIndex(self): 
         price = oms.price(self.index, True)
         self.spot = price['close']
         self.move = float(self.spot) - float(price['open'])
         self.movePercent = self.move * 100 / float(self.spot)
+    
+    def updateTrade(self): 
+        dict_trd = self.to_dict_obj()
+        res = trades.find_one_and_replace({'trade_id':dict_trd['trade_id']}, dict_trd, upsert=True)
 
     def addOrder(self, pos): self.positions.append(pos)
 
@@ -102,7 +125,7 @@ class Trade:
     def print(self):
         return [
             {
-                1: f"{str(self.index)[:3] + ': ' + str(self.strategy)}",
+                1: f"{str(self.index)[:4] + ': ' + str(self.strategy)}",
                 2: f"{str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",# Fund:' + str(round(self.margin))}",
                 3: f"{str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
                 4: f"{str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
@@ -122,15 +145,8 @@ class Trade:
         return json.loads(json.dumps(self.positions))
     
     def to_dict(self) -> dict:
-        pos = self.positions;resp = []; _res = util.read()
-        
+        pos = self.positions;resp = []
         for po in pos:
-            if po.security_id in _res.keys():
-                ltp = _res[po.security_id]
-            else: ltp = {'oi':0, 'total_buy_quantity':0, 'total_sell_quantity':0}
-            po.oi = round(int(ltp['oi'])/1000)
-            po.oi_buy = round(int(ltp['total_buy_quantity'])/1000)
-            po.oi_sell = round(int(ltp['total_sell_quantity'])/1000)
             res = {
             "SYMBOL": po.symbol,
             "QUANTITY": po.quantity,
@@ -139,21 +155,27 @@ class Trade:
             "P&L": po.pnl,
             "REALISED": po.realized,
             "UNREALIZED": po.unrealized,
-            "OI": str(po.oi) + ' (' + str(po.oi - (po.init_oi if po.init_oi > 0 else po.oi)) + ')',
-            "OI_BUY": str(po.oi_buy) + ' (' + str(po.oi_buy - (po.init_oi_buy if po.init_oi_buy > 0 else po.oi_buy)) + ')',
-            "OI_SEL": str(po.oi_sell) + ' (' + str(po.oi_sell - (po.init_oi_sell if po.init_oi_sell > 0 else po.oi_sell)) + ')'
+            "OI": str(po.oi) + ' (' + str((po.oi - po.oi_pre) if po.oi_pre > 0 else 0) + ')',
+            "BUY": str(po.total_buy_quantity) + ' (' + str((po.total_buy_quantity - po.total_buy_quantity_pre) if po.total_buy_quantity_pre > 0 else 0) + ')',
+            "SELL": str(po.total_sell_quantity) + ' (' + str((po.total_sell_quantity - po.total_sell_quantity_pre) if po.total_sell_quantity_pre > 0 else 0) + ')'
             }
             resp.append(res)
         return resp
     
     def to_dict_obj(self) -> dict:
         pos = self.positions;resp = {'margin': self.margin, 'index': self.index, 'trade_id': self.trade_id,
-                                     'strategy': self.strategy, 'sl': self.sl, 'target': self.target}
+                                     'strategy': self.strategy, 'sl': self.sl, 'target': self.target,
+                                     'pnlMax': self.pnlMax, 'pnlMin': self.pnlMin, 'status': self.status}
         pos = [x.to_dict() for x in pos]
-        resp['position'] = pos
+        resp['positions'] = pos
         return resp
 
     def update(self, positions):#, priceUpdateFlag=False
+        set_pnl = util.getTradeDetails(self.trade_id)
+        if set_pnl is not None:
+            if self.sl < set_pnl['sl']:  self.sl = set_pnl['sl']
+            if self.target > set_pnl['target']: self.target = set_pnl['target']
+            
         pnl = 0.0
         for pos in self.positions:
             for po in positions:
@@ -163,30 +185,20 @@ class Trade:
         self.pnlPercent = (self.pnl*100/float(self.margin)) if self.margin != 0.0 else 0.0
         if self.pnl > self.pnlMax or self.pnlMax == 0: self.pnlMax = self.pnl
         if self.pnl < self.pnlMin or self.pnlMin == 0: self.pnlMin = self.pnl
+        
         self.updateIndex()
-        util.updateTradeStats(self)
+        # util.updateTradeStats(self)
+        self.updateTrade()
 
         mins = int((datetime.now() - datetime.fromtimestamp(self.start)).total_seconds()/60)
         # if mins > conf['timer1']:
         #     sl = self.pnl - abs(self.pnl*0.75)
         #     if sl > self.sl: self.sl = sl
-        # if mins > conf['timer2']:
-        #     sl = self.pnl - abs(self.pnl*0.50)
-        #     if sl > self.sl: self.sl = sl
-        # if mins > conf['timer3']:
-        #     sl = self.pnl - abs(self.pnl*0.25)
-        #     if sl > self.sl: self.sl = sl
         if self.pnl > 0:
             if self.pnl > 500 and self.sl < 200: self.sl = 200
-            # if self.pnl > 1000 and self.sl < 500: self.sl = 500
-            # if self.pnl > 2000 and self.sl < 1000: self.sl = 1000
             if self.pnl > 1000 and self.sl < 800: self.sl = 800
             if self.pnl > 2000 and self.sl < 2000: self.sl = 1800
-            # if self.pnl > 2500 and self.sl < 500: self.sl = 500
-            # if self.pnl > 1500 and self.sl < 1000: self.sl = 1000
-            # if self.pnl > 2000 and self.sl < 1500: self.sl = 1500
             if self.pnl > self.target:
-                # sl = float(self.pnl) - float(float(self.pnl)*0.20)
                 sl = float(self.pnl) - 200.0
                 logger.info(f"Trade, update Trade SL: {self.sl}, New SL: {sl}, self.pnl: {self.pnl}")
                 if sl > self.sl: self.sl = sl

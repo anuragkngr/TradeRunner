@@ -1,21 +1,17 @@
+
+from datetime import datetime
+from dateutil import parser
+now = datetime.now()
 import ast, traceback, json, pandas as pd, logging, os
 conf = json.load(open("./data/configuration.json"))
-from pathlib import Path
-from datetime import datetime, date
-from time import sleep
-now = datetime.now()
-tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 
-file_path = Path(f"./logs/{tm}/market_feed.txt")
-if not file_path.exists():
-    with open(f"./logs/{tm}/market_feed.txt", "w") as fileStore:
-        fileStore.close()
-# from market_feed import read
-expiry = {'NIFTY': ['2024-05-23', '2024-05-30', '2024-06-06'], 
-          'BANKNIFTY': ['2024-05-22', '2024-05-29', '2024-06-05'], 
+tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
+expFmt = '%Y-%m-%d'
+expiry = {'NIFTY': ['2024-05-30', '2024-06-06', '2024-06-13', '2024-06-20', '2024-06-27'], 
+          'BANKNIFTY': ['2024-05-29', '2024-06-05', '2024-06-12', '2024-06-19', '2024-06-26'], 
           'FINNIFTY': ['2024-05-14', '2024-05-21', '2024-05-28', '2024-06-04'], 
-          'SENSEX': ['2024-05-10', '2024-05-17', '2024-05-24', '2024-05-31'], 
-          'BANKEX': ['2024-05-13', '2024-05-17', '2024-05-27', '2024-06-03']}
+          'SENSEX': ['2024-05-31'], 
+          'BANKEX': ['2024-06-03']}
 
 os.makedirs(f"./logs/{tm}", exist_ok=True)
 os.makedirs(f"./data/", exist_ok=True)
@@ -38,60 +34,22 @@ class Utils:
     def __init__(self):
         self.master = token_df
 
-    def updateTradeStats(self, trd): 
-        dict_trd = trd.to_dict_obj()
-        res = self.getTradeDetails(dict_trd['trade_id'])
-        if res is not None:
-            self.updateTradeDetails(res)
-
-    def updateTrade(self, trd): 
-        trd_data = {}; dict_trd = trd.to_dict_obj()
-        res = self.getTradeDetails(dict_trd['trade_id'])
-        if res is None:
-            trade_details = {'index': dict_trd['index'],'trade_id': dict_trd['trade_id'], 
-                             'strategy': dict_trd['strategy'],'margin': dict_trd['margin'], 
-                             'sl': dict_trd['sl'],'target': dict_trd['target']}#,
-                            #  'max': dict_trd['max'],'min': dict_trd['min']}
-            self.updateTradeDetails(trade_details, True)
+    def addTradeStats(self, trd): 
+        trd_data = self.getTradeDetails(trd['trade_id'])
+        dict_trd = {'index': trd['index'], 'trade_id': trd['trade_id'], 
+                        'sl': trd['sl'], 'target': trd['target']}
+        if trd_data is None:
+            
+            self.updateTradeDetails(dict_trd, act='add')
         else:
-            trd.strategy = dict_trd['strategy'] = res['strategy']
-            trd.margin = dict_trd['margin'] = res['margin']
-            trd.sl = dict_trd['sl'] = res['sl']
-            trd.target = dict_trd['target'] = res['target']
-            # trd.pnlMax = dict_trd['pnlMax'] = res['max']
-            # trd.pnlMin = dict_trd['pnlMin'] = res['min']
+            self.deleteTradeStats(dict_trd['trade_id'])
+            self.updateTradeDetails(dict_trd, act='add')
 
-        with open("./data/margin.txt", "r") as fileStore:
-            trd_data = fileStore.readline()
-            fileStore.close()
-        if isinstance(trd_data, str) and trd_data.strip() != "": 
-            trd_data = ast.literal_eval(trd_data)
-        else: trd_data = {'NIFTY': {'margin': 0, 'trades': []}, 'BANKNIFTY': {'margin': 0, 'trades': []}, 
-                          'FINNIFTY': {'margin': 0, 'trades': []}, 'NIFTYMCAP50': {'margin': 0, 'trades': []}, 
-                          'SENSEX': {'margin': 0, 'trades': []}, 'BANKEX': {'margin': 0, 'trades': []}}
-        
-        trades = trd_data[trd.index]['trades']
-        _trades = trades.copy()
-        flag = False
-        if trades:
-            flag = True
-            for t in _trades:
-                if t['trade_id'] == trd.trade_id:
-                    trades.remove(t)
-                    trades.append(trd.to_dict_obj())
-                    #  trd_data[trd.index]['trades'][str(trd.trade_id)] = trd.to_dict_obj()
-                    flag = False
-                    break
-        else: trd_data[trd.index]['trades'].append(trd.to_dict_obj())
-        if flag: trd_data[trd.index]['trades'].append(trd.to_dict_obj())
 
-        try:
-            with open("./data/margin.txt", "w") as fileStore:
-                fileStore.write(str(trd_data))
-                fileStore.close()
-        except Exception:
-            print(traceback.format_exc())
-            logger.error(f"trade book, updateTrade {traceback.format_exc()}")
+    def deleteTradeStats(self, trade_id): 
+        res = self.getTradeDetails(trade_id)
+        if res is not None:
+            self.updateTradeDetails(res, act='delete')
 
     def getTradeDetails(self, trade_id):
         trd_data = []
@@ -106,7 +64,7 @@ class Utils:
                 return _trd  
         return None      
 
-    def updateTradeDetails(self, trade_details, add=False):
+    def updateTradeDetails(self, trade_details, act=None):
         trd_data = []
         with open("./data/pnl.txt", "r") as fileStore:
             trd_data = fileStore.readline()
@@ -114,17 +72,10 @@ class Utils:
         if isinstance(trd_data, str) and trd_data.strip() != "": 
             trd_data = ast.literal_eval(trd_data)
         else: trd_data = []
-        if add:
+        if act=='add':
             trd_data.append(trade_details)
-        else:
-            for trd in trd_data:
-                if trd['trade_id'] == trade_details['trade_id']:
-                    trd['strategy'] = trade_details['strategy']
-                    trd['margin'] = trade_details['margin']
-                    trd['sl'] = trade_details['sl']
-                    trd['target'] = trade_details['target']
-                    # trd['max'] = trade_details['max']
-                    # trd['min'] = trade_details['min']
+        if act=='delete':
+            trd_data.remove(trade_details)
         try:
             with open("./data/pnl.txt", "w") as fileStore:
                 fileStore.write(str(trd_data))
@@ -132,38 +83,41 @@ class Utils:
         except Exception:
             print(traceback.format_exc())
             logger.error(f"utils, updateTradeDetails {traceback.format_exc()}")
-                
+
+    def getExpiry(self, index):
+        expList = expiry[index]
+        for idx in expList:
+            exp = self.getExpiryDate(idx)
+            sys_dt = parser.parse(self.getDate(expFmt))
+            if exp >= sys_dt:
+                return exp.strftime(expFmt)
+        print("Expiry Dates Missing...")
+        exit(0)
+
     def securityId(self, index, strike, option, exp_num=1):
-        df = self.master
-        exp = expiry[index][exp_num - 1]
-        df = df[(df['INDEX'] == index) & (df['SEM_OPTION_TYPE'] == option) & 
-            (df['SEM_STRIKE_PRICE'] == strike) & (df['SEM_EXPIRY_DATE'] == exp)]
-        return df['SEM_SMST_SECURITY_ID'].values[0] if len(df) == 1 else -1
+        df = self.master;  s_id = -1; symbol = '--'
+        exp = self.getExpiry(index)
+        df = df[df['INDEX'] == index]
+        df = df[df['SEM_OPTION_TYPE'] == option]
+        df = df[df['SEM_STRIKE_PRICE'] == strike]
+        df = df[df['SEM_EXPIRY_DATE'] == exp]
 
-    def read(self):
-        for i in range(10):
-            res = self.readTry()
-            if res is not None: return res
+        s_id = str((list(df['SEM_SMST_SECURITY_ID']))[0])
+        symbol = (list(df['SEM_CUSTOM_SYMBOL']))[0]
 
-    def readTry(self):
-        trd_data = None
-        try:
-            with open(f"./logs/{tm}/market_feed.txt", "r") as fileStore:
-                trd_data = fileStore.readline()
-                fileStore.close()
-                if isinstance(trd_data, str) and trd_data.strip() != "": 
-                    trd_data = ast.literal_eval(trd_data)
-        except Exception:
-            print(traceback.format_exc())
-            logger.error(f"Market Feed , read {traceback.format_exc()}")
-        return trd_data if trd_data is None else json.loads(json.dumps(trd_data))
+        return {'s_id': s_id, 'symbol': symbol} if len(df) == 1 else {'s_id': s_id, 'symbol': symbol}
     
-    def getDate(self):
-        return datetime.now().strftime("%d/%m/%Y")
+    def getDate(self, fmt=None):
+        if fmt is None: return datetime.now().strftime("%m-%d-%Y")
+        else: return datetime.now().strftime(fmt)
+    def getDateExpFrmt(self):
+        return datetime.now().strftime("%Y-%m-%d")
     def getTime(self):
         return datetime.now().strftime("%H:%M:%S")
     def getDateTime(self):
         return datetime.now().strftime("%d/%m/%Y, %H:%M:%S %p")
+    def getExpiryDate(self, dt):
+        return parser.parse(datetime.now().strftime(dt))
     def dictToDataFrame(self):
         return datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
     

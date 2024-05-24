@@ -2,46 +2,73 @@
 # nest_asyncio.apply()
 # import asyncio
 from utils import Utils
-import json, pandas as pd, ast, traceback, pandas_ta as ta, logging, os, pymongo
+import random
+import json, pandas as pd, ast, traceback, pymongo, pandas_ta as ta, logging, os#, bson
+# from bson.raw_bson import RawBSONDocument
+from pathlib import Path
 from datetime import datetime
+from time import sleep
+idx = ['13', '21', '25', '20', '51', '69']
+# from bson import encode
+# from pymongo import InsertOne, DeleteMany, DeleteOne, ReplaceOne
+from dhanhq import dhanhq, marketfeed
+from order_management_system import OMS
 conf = json.load(open("./data/configuration.json"))
-client = pymongo.MongoClient(conf['db_url_lcl'])
-dblist = client.list_database_names()
-if "tradestore" in dblist:
-  print("The database exists.")
-mydb = client["tradestore"]
-
+dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
 
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 os.makedirs(f"./logs/{tm}", exist_ok=True)
 os.makedirs(f"./data/", exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application2.log",
-    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger()
-from time import sleep
-from dhanhq import dhanhq, marketfeed
-from order_management_system import OMS
-oms = OMS()
-dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
-instruments = []
+client = pymongo.MongoClient(conf['db_url_lcl'])
+dblist = client.list_database_names()
+mydb = client["tradestore"]
+options = mydb["options"]
+feed = mydb["feed"]
+indexes = mydb["indexes"]
+instruments = [(0, '13'), (0, '21'), (0, '25'), (0, '20'), (0, '51'), (0, '69')]
 subscription_code = marketfeed.Quote
+# subscription_code = marketfeed.Ticker
+oms = OMS() 
 util = Utils()
+
+file_path = Path(f"./logs/{tm}/market_feed.txt")
+# if not file_path.exists():
+#     with open(f"./logs/{tm}/market_feed.txt", "w") as fileStore:
+#         fileStore.close()
+
+# logging.basicConfig(
+#     level=logging.INFO, filename=f"./logs/{tm}/market_feed.log",
+#     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
+# logger = logging.getLogger()
+
+feed_ids = []
 
 index = 'NIFTY'; slab = 50; 
 
-index = 'BANKNIFTY'; slab = 100; 
+# instruments = [(0, '13'), (0, '25'), (2, '38730'), (2, '46923')]
+# instruments = instruments + [(2, '43889'), (2, '37051')]
+instruments = [(2, '37051')]
 
-instruments = [(2, '41537')]
-print(instruments)
-# exit(0)
+# print(instruments)
 
 async def on_connect(instance):
     print("Connected to websocket")
 
 async def on_message(instance, message):
     print("Received:", message)
+    try:
+         print()
+        # res = indexes.find_one({'security_id': {'$eq': int('13')}}, sort=[('_id', -1)])
+        # print({'Item 1: open': res['open'], 'high':res['high'], 'low':res['low'], 'close':res['close']})
+        # res = indexes.find_one({'security_id': {'$eq': int('13')}}, sort=[('_id', 1)])
+        # print({'Item 2: open': res['open'], 'high':res['high'], 'low':res['low'], 'close':res['close']})
+        
+        # saveData(message)
+    except Exception:
+            print(traceback.format_exc())
+            # logger.error(f"market_feed , on_message message: {message} {traceback.format_exc()}")
+            sleep(.2)
 
 feed = marketfeed.DhanFeed(conf['dhan_id'],
     conf['dhan_token'],
@@ -50,18 +77,5 @@ feed = marketfeed.DhanFeed(conf['dhan_id'],
     on_connect=on_connect,
     on_message=on_message)
 
-opts = mydb["options"]
-
-mydict = { "name": "John", "address": "Highway 37" }
-x = opts.insert_one(mydict)
-
-# mylist = [
-#   { "name": "Amy", "address": "Apple st 652"},
-#   { "name": "Hannah", "address": "Mountain 21"}
-# ]
-# x = opts.insert_many(mylist)
-
-for x in opts.find({},{ "name": 'John' }):
-    print(x)
-# feed.run_forever()        
+feed.run_forever()        
 # asyncio.create_task(feed.run_forever())

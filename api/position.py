@@ -1,4 +1,4 @@
-import ast, logging, json, os
+import ast, logging, json, os, pymongo
 from datetime import datetime, time
 from time import sleep
 from dhanhq import dhanhq
@@ -12,6 +12,11 @@ logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
+client = pymongo.MongoClient(conf['db_url_lcl'])
+dblist = client.list_database_names()
+mydb = client["tradestore"]
+options = mydb["options"]
+option_live = mydb["option_live"]
 class Position:
     def __init__(self, pos, trade=False):
         self.index = pos["index"] if "index" in pos else None
@@ -33,12 +38,28 @@ class Position:
         self.expiry_date = pos["drvExpiryDate"] if "drvExpiryDate" in pos else '-'
         self.option_type = pos["drvOptionType"] if "drvOptionType" in pos else 0
         self.strike_price = pos["drvStrikePrice"] if "drvStrikePrice" in pos else 0
-        self.oi = pos["oi"] if "oi" in pos else 0
-        self.oi_buy = pos["oi_buy"] if "oi_buy" in pos else 0
-        self.oi_sell = pos["oi_sell"] if "oi_sell" in pos else 0
-        self.init_oi = pos["init_oi"] if "init_oi" in pos else 0
-        self.init_oi_buy = pos["init_oi_buy"] if "init_oi_buy" in pos else 0
-        self.init_oi_sell = pos["init_oi_sell"] if "init_oi_sell" in pos else 0
+
+        opt = options.find_one({'$and': [{'oi': { '$gt': 0 }}, {'security_id': int(self.security_id)}]}, sort=[('_id', -1)])
+        # option_live = options.find_one({'security_id': int(self.security_id)}, sort=[('_id', -1)])
+
+        self.oi = self.oi_pre = self.total_buy_quantity = self.total_sell_quantity = self.total_buy_quantity_pre = self.total_sell_quantity_pre = 0
+
+        if opt is not None: 
+            self.oi = round(int(opt['oi'])/1000) if "oi" in opt else 0
+            if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if "OI" in opt else 0
+        
+        if self.oi_pre == 0: self.oi_pre = self.oi
+
+        if opt is not None: 
+            self.total_buy_quantity = opt["total_buy_quantity"] if "total_buy_quantity" in opt else 0
+            self.total_buy_quantity = round(int(self.total_buy_quantity)/1000)
+
+            self.total_sell_quantity = opt["total_sell_quantity"] if "total_sell_quantity" in opt else 0
+            self.total_sell_quantity = round(int(self.total_sell_quantity)/1000)
+        
+        # self.init_oi = opt["init_oi"] if "init_oi" in opt else 0
+        # self.init_oi_buy = opt["init_oi_buy"] if "init_oi_buy" in opt else 0
+        # self.init_oi_sell = opt["init_oi_sell"] if "init_oi_sell" in opt else 0
 
         self.price = (float(self.unrealized)/abs(float(self.quantity)))
 
@@ -74,10 +95,33 @@ class Position:
         self.option_type = pos.option_type if hasattr(pos, 'option_type') else 0
         self.strike_price = pos.strike_price if hasattr(pos, 'strike_price') else 0
 
-        if self.init_oi == 0 and self.oi > 0:
-            self.init_oi = self.oi
-            self.init_oi_buy = self.oi_buy
-            self.init_oi_sell = self.oi_sell
+        opt = options.find_one({'$and': [{'oi': { '$gt': 0 }}, {'security_id': int(self.security_id)}]}, sort=[('_id', -1)])
+
+
+        if opt is not None: 
+            self.oi = round(int(opt['oi'])/1000) if "oi" in opt else 0
+            if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if "OI" in opt else 0
+            opt['oi'] = self.oi
+            self.total_buy_quantity = opt["total_buy_quantity"] if "total_buy_quantity" in opt else 0
+            self.total_buy_quantity = round(int(opt['total_buy_quantity'])/1000)
+
+            self.total_sell_quantity = opt["total_sell_quantity"] if "total_sell_quantity" in opt else 0
+            self.total_sell_quantity = round(int(opt['total_sell_quantity'])/1000)
+
+        if self.oi > 0 and opt['oi'] > 0 and self.oi != opt['oi']:
+            self.oi_pre = self.oi
+            self.oi = round(int(opt['oi'])/1000)
+            if self.total_buy_quantity > 0 and opt['total_buy_quantity'] > 0 and int(self.total_buy_quantity) != int(opt['total_buy_quantity']):
+                self.total_buy_quantity_pre = round(int(self.total_buy_quantity)/1000)
+                self.total_buy_quantity = round(int(opt['total_buy_quantity'])/1000)
+            if self.total_sell_quantity > 0 and opt['total_sell_quantity'] > 0 and int(self.total_sell_quantity) != int(opt['total_sell_quantity']):
+                self.total_sell_quantity_pre = round(int(self.total_sell_quantity)/1000)
+                self.total_sell_quantity = round(int(opt['total_sell_quantity'])/1000)
+
+        # if self.init_oi == 0 and self.oi > 0:
+        #     self.init_oi = self.oi
+        #     self.init_oi_buy = self.oi_buy
+        #     self.init_oi_sell = self.oi_sell
 
         self.price = (float(self.unrealized)/abs(float(self.quantity)))
         if self.position_type == 'LONG':
@@ -94,6 +138,7 @@ class Position:
                 deltaPrice = (float(self.sell_avg) - float(self.cost_price))*abs(float(self.quantity))
                 self.pnl = (float(self.unrealized) + deltaPrice)*(-1)
             self.price = float(self.sell_avg) + self.price
+        # self.updatePosition()
 
     def to_dict(self):
         return self.__dict__

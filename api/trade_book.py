@@ -1,4 +1,4 @@
-import ast, traceback, numpy as np, json, pandas as pd, logging
+import ast, traceback, numpy as np, json, pandas as pd, logging, pymongo
 conf = json.load(open("./data/configuration.json"))
 from tabulate import tabulate, SEPARATING_LINE
 from datetime import datetime, time
@@ -6,7 +6,7 @@ from time import sleep
 from index import Index
 from trade import Trade
 from utils import Utils
-from order_management_system import OMS, trade_headers, trade_columns
+from order_management_system import OMS, trade_headers, trade_columns, idx_list
 oms = OMS()
 util = Utils()
 now = datetime.now()
@@ -14,6 +14,13 @@ tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
+client = pymongo.MongoClient(conf['db_url_lcl'])
+dblist = client.list_database_names()
+if "tradestore" in dblist:
+  print("Trade Book 'tradestore' database exists.")
+mydb = client["tradestore"]
+trades = mydb["trades"]
+indexes = mydb["indexes"]
 logger = logging.getLogger()
 
 class TradeBook: 
@@ -34,14 +41,9 @@ class TradeBook:
         self.finalRisk = conf["final_risk"]
         self.target = 0
         self.sl = 0
-        spot = oms.price('INDIA VIX', True)
-        self.vix = Index(spot)
-        spot = oms.price('NIFTY', True)
-        self.nifty = Index(spot)
-        spot = oms.price('BANKNIFTY', True)
-        self.bank_nifty = Index(spot)
-        # spot = oms.price('FINNIFTY', True)
-        # self.fin_nifty = Index(spot)
+        self.vix = indexes.find_one({'security_id': int(idx_list['INDIA VIX'])})
+        self.nifty = Index('NIFTY')
+        self.bank_nifty = Index('BANKNIFTY')
         self.risk = conf["risk"]
         self.reward = conf["reward"]
 
@@ -50,7 +52,6 @@ class TradeBook:
         self.totalTrades += 1
         self.openTrades += 1
         self.fundUpdate(trd, fund)
-        util.updateTrade(trd)
 
     def clean(self):
         trds = self.trades
@@ -60,52 +61,29 @@ class TradeBook:
                 self.totalTrades = self.totalTrades - 1
     
     def loadTrades(self, pos): 
-        dic_data = [];
         posList=pos.copy()
         s_ids = [x.security_id for x in pos]
-        with open("./data/margin.txt", "r") as fileStore:
-            dic_data = fileStore.readline()
-            fileStore.close()
-        if isinstance(dic_data, str) and dic_data.strip() != "": 
-            dic_data = ast.literal_eval(dic_data)
-        else: dic_data = {'NIFTY': {'margin': 0, 'trades': []}, 'BANKNIFTY': {'margin': 0, 'trades': []}, 
-                          'FINNIFTY': {'margin': 0, 'trades': []}, 'NIFTYMCAP50': {'margin': 0, 'trades': []}, 
-                          'SENSEX': {'margin': 0, 'trades': []}, 'BANKEX': {'margin': 0, 'trades': []}}
-        for idx in dic_data:
-            idxPosList = [x for x in pos if x.index == idx]
-            idx_trades = dic_data[idx]['trades']
-            _copy_idx_trades = idx_trades.copy()
-            for idx_trd in idx_trades:
-                trd_pos = []
-                trd_flag = False
-                for _po in idx_trd['position']:
-                    if _po['security_id'] not in s_ids: trd_flag = True
-                    if not trd_flag and _po['security_id'] in s_ids:
-                        for po in idxPosList:
-                            if po.security_id == _po['security_id']:
-                                if po.quantity == _po['quantity']:
-                                    po.cost_price = _po['cost_price']
-                                    trd_pos.append(po)
-                                    if po in posList: posList.remove(po)
-                                else:
-                                    trd_flag = True
-                                    break
-                    if trd_flag: 
-                        break
-                if trd_flag: 
-                    _copy_idx_trades.remove(idx_trd)
-                    break
-                else:
-                    _trade = Trade(trd_pos, idx, idx_trd['trade_id'])
-                    self.enterTrade(_trade, idx_trd['margin'])
-            dic_data[idx]['trades'] = _copy_idx_trades
-        try:
-            with open("./data/margin.txt", "w") as fileStore:
-                res = fileStore.write(str(dic_data))
-                fileStore.close()
-        except Exception:
-            print(traceback.format_exc())
-            logger.error(f"trade book, loadTrades {traceback.format_exc()}")
+
+        trades_dict = trades.find({'status': 'open'})
+
+        for trd in trades_dict:
+            positions = trd['positions']
+            trd_pos = []; trd_flag = False
+            for position in positions:
+                if trd_flag or position['security_id'] in s_ids: trd_flag = True
+                if trd_flag:
+                    for po in pos:
+                        if po.security_id == position['security_id']:
+                            po.cost_price = position['cost_price']
+                            trd_pos.append(po)
+                            if po in posList: posList.remove(po)
+                            break
+                else: 
+                    trades.delete_one({'trade_id': trd['trade_id']})
+                    # trades.remove({'trade_id': trd['trade_id']})
+            if trd_flag: 
+                _trade = Trade(trd_pos, trd['index'], trd['trade_id'])
+                self.enterTrade(_trade, trd['margin'])
         return posList
 
     def setFinalRisk(self):
@@ -122,13 +100,14 @@ class TradeBook:
         self.closeTrades += 1
         self.trades.remove(trd)
         self.fundUpdate(trd)
+        util.deleteTradeStats(trd.trade_id)
         sleep(conf["order_delay"])
 
     def validateTrade(self, index, pos):
         s_id = [];
         pos_idx = [x for x in pos if x.index == index]
         copy_pos_idx = pos_idx.copy()
-        trades_idx = [x for x in self.trades if x.index == index]
+        trades_idx = [x for x in self.trades if (x.index == index and x.status == 'open')]
         for trd_idx in trades_idx:
             s_id += [po.security_id for po in trd_idx.positions]
 
@@ -139,14 +118,9 @@ class TradeBook:
             self.enterTrade(trade)
 
     def updateIndex(self):
-        spot = oms.price('INDIA VIX', True)
-        self.vix = Index(spot)
-        spot = oms.price('NIFTY', True)
-        self.nifty = Index(spot)
-        spot = oms.price('BANKNIFTY', True)
-        self.bank_nifty = Index(spot)
-        # spot = oms.price('FINNIFTY', True)
-        # self.fin_nifty = Index(spot)
+        self.vix = indexes.find_one({'security_id': int(idx_list['INDIA VIX'])})
+        self.nifty = Index('NIFTY')
+        self.bank_nifty = Index('BANKNIFTY')
 
     def update(self):  # sourcery skip: low-code-quality
         self.updateIndex()
@@ -216,9 +190,9 @@ class TradeBook:
         if self.openTrades > 0:
             data = [
                 {
-                    1: f"{'VIX: ' + str(round(self.vix.spot, 2)) + ' (' + str(round(self.vix.move, 2)) + ')'}",
-                    2: f"{'NIFTY: ' + str(round(self.nifty.spot, 2)) + ' (' + str(round(self.nifty.move, 2)) + ')'}",
-                    3: f"{'BANKNIFTY: ' + str(round(self.bank_nifty.spot, 2)) + ' (' + str(round(self.bank_nifty.move, 2)) + ')'}",
+                    1: f"{'VIX: ' + str(round(float(self.vix['LTP']), 2)) + ' (' + str(round((float(self.vix['LTP']) - float(self.vix['open'])), 2)) + ')'}",
+                    2: f"{'NIFTY: ' + str(round(float(self.nifty.ltp), 2)) + ' (' + str(round(float(self.nifty.move), 2)) + ') (' + str(self.nifty.pcr) + ')'}",
+                    3: f"{'BANKNIFTY: ' + str(round(float(self.bank_nifty.ltp), 2)) + ' (' + str(round(float(self.bank_nifty.move), 2)) + ') (' + str(self.bank_nifty.pcr) + ')'}",
                     # 4: f"{'FINNIFTY: ' + str(round(self.fin_nifty.spot, 2)) + ' (' + str(round(self.fin_nifty.move, 2)) + ')'}",
                 },
                 {
