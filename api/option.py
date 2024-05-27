@@ -34,11 +34,16 @@ class Option:
         self.open_high = False
         self.open_low = False
         
-        if round(float(self.open)) >= round(float(self.low)): self.open_low = True
-        if round(float(self.open)) <= round(float(self.high)): self.open_low = True
+        if round(float(self.open)) == round(float(self.low)): self.open_low = True
+        if round(float(self.open)) == round(float(self.high)): self.open_high = True
 
-    def to_dict(self):
-        return self.__dict__
+    def to_dict(self, hl=None):
+        if self.open_high:#hl is not None and hl=='high':# 
+            return {'open(H)': self.open, 'high': self.high,
+                'strike(H)': self.strike, 'option(H)': self.option_type}
+        if self.open_low:#if hl is not None and hl=='low':#
+            return {'index': self.index[:4], 'open(L)': self.open, 'low': self.low,
+                'strike(L)': self.strike, 'option(L)': self.option_type}
     
 if __name__ == "__main__": 
     # print("BANKNIFTY-Mar2024-48000-CE")

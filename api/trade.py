@@ -55,17 +55,19 @@ class Trade:
         else:
             self.strategy = 'Selling (b=' + str(buying_count) + ', s=' + str(selling_count) + ')'
 
+        self.updated_at = self.created_at = datetime.now()
         self.updateTrade()
         util.addTradeStats({'index': self.index, 'trade_id': self.trade_id, 
                     'sl': self.sl, 'target': self.target})
 
-    def updateIndex(self): 
-        price = oms.price(self.index, True)
-        self.spot = price['close']
-        self.move = float(self.spot) - float(price['open'])
-        self.movePercent = self.move * 100 / float(self.spot)
+    # def updateIndex(self): 
+    #     price = oms.price_DB(self.index)
+    #     self.spot = price['close']
+    #     self.move = float(self.spot) - float(price['open'])
+    #     self.movePercent = self.move * 100 / float(self.spot)
     
     def updateTrade(self): 
+        self.updated_at = datetime.now()
         dict_trd = self.to_dict_obj()
         res = trades.find_one_and_replace({'trade_id':dict_trd['trade_id']}, dict_trd, upsert=True)
 
@@ -96,7 +98,7 @@ class Trade:
     def adjustLeg(self, position):   # sourcery skip: low-code-quality
         if self.status != "open":
             return -1
-        inxPrice = oms.price(self.index, True)['close']# .dailyPrice(self.index)
+        inxPrice = oms.price_DB(self.index)# .dailyPrice(self.index)
         hitSide = position['optiontype']
         strikeCE=strikePE=hedgeCE=hedgePE=[]
         for pos in self.positions:
@@ -186,7 +188,7 @@ class Trade:
         if self.pnl > self.pnlMax or self.pnlMax == 0: self.pnlMax = self.pnl
         if self.pnl < self.pnlMin or self.pnlMin == 0: self.pnlMin = self.pnl
         
-        self.updateIndex()
+        # self.updateIndex()
         # util.updateTradeStats(self)
         self.updateTrade()
 

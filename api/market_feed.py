@@ -23,6 +23,7 @@ options = mydb["options"]
 feed = mydb["feed"]
 indexes = mydb["indexes"]
 # indexes.drop()
+# options.drop()
 # instruments = [(0, '13'), (0, '21'), (0, '25'), (0, '20'), (0, '51'), (0, '69')]
 instruments = [(0, '13'), (0, '21'), (0, '25')]
 subscription_code = marketfeed.Quote
@@ -44,6 +45,11 @@ feed_ids = []
 
 index = 'NIFTY'; slab = 50; 
 strike = oms.spotStrike(index)
+if strike < 1: 
+    print(f'Invalid strike for {index} {strike}')
+    exit()
+    # sleep(5)
+    # strike = 22950
 
 for i in range(12):
     _strike = int(str(round(strike + (slab*i))))
@@ -81,7 +87,11 @@ for i in range(11):
 
 index = 'BANKNIFTY'; slab = 100; i=0 
 strike = oms.spotStrike(index)
-
+if strike < 1: 
+    print(f'Invalid strike for {index} {strike}')
+    exit()
+    # sleep(5)
+    # strike = 49000
 for i in range(12):
     _strike = int(str(round(strike + (slab*i))))
 
@@ -145,11 +155,15 @@ def saveData(message):
     db_obj = indexes if message['exchange_segment'] == 0 else options
         
     if message['type'] == 'Quote Data':
-        message['LTT'] = util.getDate() + ' ' + message['LTT'][:-3] + ':00'
+        if util.getTime() < conf["start_time"]:
+            message['LTT'] = util.getDate() + ' ' + conf["start_time"] + ':00'
+        elif util.getTime() > conf["exit_time"]:
+            message['LTT'] = util.getDate() + ' ' + conf["exit_time"] + ':00'
+        else: message['LTT'] = util.getDate() + ' ' + message['LTT'][:-3] + ':00'
         res = db_obj.find_one_and_update(
                 { "security_id" : message['security_id'], "LTT" : message['LTT'] },
                 { "$set": message },
-                { "sort": { "_id" : 1 } },
+                { "sort": { "_id" : -1 } },
                 upsert=True
             )
     else:
@@ -157,7 +171,7 @@ def saveData(message):
         res = db_obj.find_one_and_update(
                 { "security_id" : message['security_id'] },
                 { "$set": message },
-                { "sort": { "_id" : 1 } },
+                { "sort": { "_id" : -1 } },
                 upsert=True
             )
     

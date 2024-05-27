@@ -1,8 +1,9 @@
-import json, logging, pymongo
+import json, logging, pymongo, pandas as pd
 from order_management_system import OMS, idx_list
 from datetime import datetime
 from utils import Utils
 from option import Option
+from tabulate import tabulate
 conf = json.load(open("./data/configuration.json"))
 oms = OMS()
 util = Utils()
@@ -27,14 +28,14 @@ class Index:
         self.high = idx["high"] if "high" in idx else -1
         self.low = idx["low"] if "low" in idx else -1
         self.ltp = idx["LTP"] if "LTP" in idx else -1
-        self.close = self.ltp#idx["close"] if "close" in idx else -1
+        self.close = idx["close"] if "close" in idx else -1
         self.move = float(self.close) - float(self.open)
         self.movePercent = self.move * 100 / float(self.close)
         if index_trade_start is not None: self.open = index_trade_start
         self.ltt = idx["LTT"] if "LTT" in idx else -1
-        if self.move < ((-1)*slab): self.trend = 'bear'
-        elif self.move > slab: self.trend = 'bull'
-        else: self.trend = 'neutral'
+        if self.move < ((-1)*slab): self.trend = 'D'
+        elif self.move > slab: self.trend = 'U'
+        else: self.trend = 'N'
 
         spot = oms.spotStrike(index)
         
@@ -45,11 +46,6 @@ class Index:
         
         for e in res: 
             stk_sid.append({'strike': e['strike'], 'security_id': e['security_id'], 'symbol': e['symbol']})
-        
-        # res = options.find_one({'security_id': s_id}, sort=[('_id', -1)])
-        # res = options.find_one({'$and': [{'security_id': s_id}, 
-        #                              {'$or': [{'oi': { '$gt': 0 }}, {'OI': { '$gt': 0 }}] }
-        #                              ]}, sort=[('_id', -1)])
         
         bull_otm_options = atm_options = bear_otm_options = all_options = []
         
@@ -86,19 +82,81 @@ class Index:
 
         self.straddle_price = sum(float(opt.ltp) for opt in atm_options if opt.strike == spot)
 
-        self.indicators = oms.getIndicators(index)
-        index_ohlc = conf[index]
+        self.indicators = oms.getIndicators(index, spot)
+        # ohlc_fut = self.indicators['ohlc']
+        # self.ltp_fut = ohlc_fut['ltp']
+        # self.move_fut = float(ohlc_fut['close']) - float(ohlc_fut['open'])
+        # self.movePercent_fut = self.move_fut * 100 / float(ohlc_fut['close'])
+        
+        self.vwap = self.indicators['vwap']
+        sma = self.indicators['sma']
+        ema = self.indicators['ema']
+        
+        
+        self.sma_fast = sma['indicator']
+        self.sma_slow = sma['indicator_2']
+        self.ema_fast = ema['indicator']
+        self.ema_slow = ema['indicator_2']
+
+        index_ohlc = oms.price_history(index)
         self.pre_open = index_ohlc['open']
         self.pre_high = index_ohlc['high']
         self.pre_low = index_ohlc['low']
         self.pre_close = index_ohlc['close']
         self.pre_move = float(self.pre_close) - float(self.pre_open)
-        if self.pre_move < ((-1)*slab): self.pre_trend = 'bear'
-        elif self.pre_move > slab: self.pre_trend = 'bull'
-        else: self.pre_trend = 'neutral'
+        if self.pre_move < ((-1)*slab): self.pre_trend = 'D'
+        elif self.pre_move > slab: self.pre_trend = 'U'
+        else: self.pre_trend = 'N'
+
+        self.open_high_list = [opt.to_dict() for opt in all_options if opt.open_high]
+        self.open_low_list = [opt.to_dict() for opt in all_options if opt.open_low]
+        
 
     def to_dict(self):
-        return self.__dict__
+        dictObj = self.__dict__
+        dictObj.pop('indicators', None)
+        return dictObj
+    
+    def print(self):
+        df_ol = pd.DataFrame(self.open_low_list)
+
+        df_ol = df_ol.dropna()
+        # return df_ol
+        print(df_ol)
+    
     
 if __name__ == "__main__": 
-    print()
+    idx = Index('NIFTY')
+
+    idx.print()
+    exit(0)
+    # print(idx)
+    # top = idx.open_low_list
+    # top = idx.open_high_list
+    df_oh = pd.DataFrame(idx.open_high_list)
+    df_ol = pd.DataFrame(idx.open_low_list)
+    # print(df_ol)
+    # exit()
+    df_ol = df_ol.head(5).join(df_oh.head(5))
+
+    oh_list = []; ol_list = []
+
+    print(df_ol)
+    exit()
+    data = [
+                {
+                    1: f"",
+                    2: f"{'PRE (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.pre_close))) + ' (' + str(round(float(self.nifty.pre_move))) + ')'}",
+                    3: f"{'ATM: ' + str(round(float(self.nifty.straddle_price))) + ', VWAP: ' + str(round(float(self.nifty.vwap))) 
+                         + ', EMA: ' + str(round(float(self.nifty.ema_fast - self.nifty.ema_slow)))}",
+                },
+                {
+                    1: f"{'BANKN (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.close))) + ' (' + str(round(float(self.bank_nifty.move))) + ') [' + str(self.bank_nifty.pcr) + ']'}",
+                    2: f"{'PRE (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.pre_close))) + ' (' + str(round(float(self.bank_nifty.pre_move))) + ') '}",
+                    3: f"{'ATM: ' + str(round(float(self.bank_nifty.straddle_price))) + ', VWAP: ' + str(round(float(self.bank_nifty.vwap))) 
+                         + ', EMA: ' + str(round(float(self.bank_nifty.ema_fast - self.bank_nifty.ema_slow)))}",
+                    # 4: f"{'O=H: (' + str(self.bank_nifty.open_high_list) + '), O=L: (' + str(self.bank_nifty.open_high_list) + ')'}",
+                    
+                }
+        ]
+    print(json.dumps(idx.to_dict()))

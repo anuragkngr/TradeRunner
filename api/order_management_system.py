@@ -1,7 +1,7 @@
 from position import Position
 from utils import Utils
 import traceback, json, logging, pandas_ta as ta, warnings, pandas as pd, pymongo
-from datetime import datetime
+from datetime import datetime, timedelta, time
 conf = json.load(open("./data/configuration.json"))
 from time import sleep
 from dhanhq import dhanhq
@@ -16,6 +16,7 @@ oi = mydb["open_interest"]
 
 warnings.filterwarnings('ignore')
 trade_headers=['SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED', 'OI', 'BUY', 'SEL']
+option_headers=['INDEX', 'OPEN', 'LOW', 'STRIKE', 'OPTION', 'OPEN', 'HIGH', 'STRIKE', 'OPTION']
 trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET', 'SWING']
 idx_list = {'NIFTY': '13', 'BANKNIFTY': '25', 'FINNIFTY': '27', 'INDIA VIX': '21', 'NIFTYMCAP50': '20', 'BANKEX': '69', 'SENSEX': '51'}
 fut_list = {'NIFTY': '46930', 'BANKNIFTY': '46923'}
@@ -47,16 +48,26 @@ class OMS():
             return True 
         except Exception: return False
 
-    def getIndicators(self, index):
+    def getIndicators(self, index, spot):
         try:
-            response = {}
+            atm_ce = util.securityId(index, spot, 'CE')
+            atm_pe = util.securityId(index, spot, 'PE')
+            atm_ce = self.price(atm_ce['s_id'], False, True)
+            atm_pe = self.price(atm_pe['s_id'], False, True)
+            # res = json.load(open("./data/market_feed.json"))['data']
             res = self.price(fut_list[index], False, True, 'FUTIDX')
-            temp = self.getIndicator(res, index, 'vwap')
-            response['vwap'] = temp
-            temp = self.getIndicator(res, index, 'sma')
-            response['sma'] = temp
-            temp = self.getIndicator(res, index, 'ema')
-            response['ema'] = temp
+            response = {}
+            # ohlc = {'open': res['open'][0], 'high': max(res['high']), 
+            #    'low': min(res['low']), 'close': res['close'][-1], 'ltp': res['close'][-1]}
+            atm_ce = self.getIndicator(atm_ce, index, 'vwap')
+            atm_pe = self.getIndicator(atm_pe, index, 'vwap')
+
+            response['vwap'] = float(atm_ce) + float(atm_pe)
+            sma = self.getIndicator(res, index, 'sma')
+            response['sma'] = sma
+            ema = self.getIndicator(res, index, 'ema')
+            response['ema'] = ema
+            # response['ohlc'] = ohlc
             return response
         except Exception: return None
 
@@ -72,8 +83,8 @@ class OMS():
             slow = len(df.close) - 1
             fast = int(slow/2)
             if indicator == 'vwap':
-                var = df['indicator'] = ta.vwap(df['high'], df['low'], df['close'], df['volume'])
-                response = {'indicator': list(df['indicator'])[-1]}
+                df['indicator'] = ta.vwap(df['high'], df['low'], df['close'], df['volume'])
+                response = list(df['indicator'])[-1]#{'indicator': list(df['indicator'])[-1]}
                 # print(var)
             if indicator == 'sma':
                 var = df['indicator'] = ta.sma(df['close'], fast)
@@ -93,16 +104,18 @@ class OMS():
             
             # if cross == 0: response = {'indicator': list(df['indicator'])[-1]}
             if indicator in ['sma', 'ema']:
-                df['ind_1_above_2'] = (df["indicator"] > df["indicator_2"]).astype(int)
+                # df['ind_1_above_2'] = (df["indicator"] > df["indicator_2"]).astype(int)
                 # df['ind_1_cross_2'] = df['ind_1_above_2'].diff().astype('Int64')
 
-                df['ind_2_above_1'] = (df["indicator_2"] > df["indicator"]).astype(int)
+                # df['ind_2_above_1'] = (df["indicator_2"] > df["indicator"]).astype(int)
                 # df['ind_2_cross_1'] = df['ind_2_above_1'].diff().astype('Int64')
 
-                response = {'index': index, 'name': indicator, 'indicator': list(df['indicator'])[-1], 
-                        'indicator_2': list(df['indicator_2'])[-1], 'ind_1_above_2': list(df['ind_1_above_2'])[-1], 
-                        # 'ind_2_cross_1': list(df['ind_1_cross_2'][-1]), 'ind_1_cross_2': list(df['ind_1_cross_2'][-1]),
-                        'ind_2_above_1': list(df['ind_2_above_1'])[-1]}
+                response = {'indicator': list(df['indicator'])[-1], 'indicator_2': list(df['indicator_2'])[-1]}
+                
+                # response = {'index': index, 'name': indicator, 'indicator': list(df['indicator'])[-1], 
+                #         'indicator_2': list(df['indicator_2'])[-1], 'ind_1_above_2': list(df['ind_1_above_2'])[-1], 
+                #         # 'ind_2_cross_1': list(df['ind_1_cross_2'][-1]), 'ind_1_cross_2': list(df['ind_1_cross_2'][-1]),
+                #         'ind_2_above_1': list(df['ind_2_above_1'])[-1]}
             return response
         except Exception: return None
 
@@ -232,7 +245,7 @@ class OMS():
     def spotStrike(self, index):
         slab = 100 if index == "BANKNIFTY" else 50
         try:
-            spot_price = self.Price_DB(index)
+            spot_price = self.price_DB(index)
             if not spot_price: spot_price = self.price(index, True)
         except Exception:
             logger.info(f"Positions API  Exception rmsLimit response: {traceback.format_exc()}")
@@ -241,41 +254,58 @@ class OMS():
         strike = round(spot_price / slab) * slab
         return strike
 
-    def Price_DB(self, security):
+    def price_DB(self, security):
         res=[]
         if security.isnumeric():
             if security < 1000:
                 res = indexes.find_one({'security_id': security}, sort=[('_id', -1)])
             else : res = options.find_one({'security_id': security}, sort=[('_id', -1)])
-        else: res = indexes.find_one({'security_id': int(idx_list[security])}, sort=[('_id', -1)])
+            if not res: res = self.price(security)
+
+        else: 
+            res = indexes.find_one({'security_id': int(idx_list[security])}, sort=[('_id', -1)])
+            if not res: res = self.price(security, True)
         return res
 
     def price(self, security, isIndex=False, price=False, instrument_type='OPTIDX'):
-        security_id = security; res = None
+        security_id = security; res = {'open': -1, 'high': -1, 'low': -1, 'close': -1}
         if isIndex: 
             security_id = idx_list[security]
             exchange_segment = 'IDX_I'
         else: exchange_segment = 'NSE_FNO'
         try:
-            
             res = self.dhan.intraday_minute_data(
             security_id=security_id, exchange_segment=exchange_segment, instrument_type=instrument_type)
-            # logger.info(f"OMS API price price response: {json.dumps(res)}")
+            if res['status'] == 'failure':
+                return {'open': -1, 'high': -1, 'low': -1, 'close': -1}
+            else: res = res['data']
         except Exception:
             logger.info(f"OMS API  Exception price response: {traceback.format_exc()}")
-            self.refreshConnection('price')
-            res = {'data': {'open': [12.10], 'high': [12.45], 'low': [12.02], 'close': [12.21]}}
-            # res = self.dhan.intraday_minute_data(
-            # security_id=security_id, exchange_segment=exchange_segment, instrument_type='OPTIDX')
-            return res['data'] 
-        if price: return res['data']
-        res = res['data']
-        if res == '': 
-            res = {'open': [-1], 'high': [-1], 'low': [-1], 'close': [-1]}
-        res = {'open': res['open'][0], 'high': max(res['high']), 
+            res = {'open': -1, 'high': -1, 'low': -1, 'close': -1}
+            return res
+        if price: return res
+        else: return {'open': res['open'][0], 'high': max(res['high']), 
                'low': min(res['low']), 'close': res['close'][-1]}
-        return res
- 
+    
+    def price_history(self, symbol, isIndex=True):
+        try:
+            res = self.dhan.historical_daily_data(
+                symbol=symbol,
+                exchange_segment='IDX_I' if isIndex else "NSE_FNO",
+                instrument_type='INDEX' if isIndex else "OPTIDX",
+                expiry_code=0,
+                from_date=(datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d') ,
+                to_date=datetime.now().strftime('%Y-%m-%d')
+            )
+            if res['status'] == 'failure': return {'open': -1, 'high': -1, 'low': -1, 'close': -1}
+            else: 
+                res = res['data']
+                return {'open': res['open'][-1], 'high': res['high'][-1], 
+                   'low': res['low'][-1], 'close': res['close'][-1]}
+        except Exception:
+            logger.info(f"OMS API  Exception price_history response: {traceback.format_exc()}")
+            return {'open': -1, 'high': -1, 'low': -1, 'close': -1}
+        
     def closeAllTrade(self, book):
         for trd in book.trades: self.closeTrade(trd)
 

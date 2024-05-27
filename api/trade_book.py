@@ -6,7 +6,7 @@ from time import sleep
 from index import Index
 from trade import Trade
 from utils import Utils
-from order_management_system import OMS, trade_headers, trade_columns, idx_list
+from order_management_system import OMS, trade_headers, trade_columns, idx_list, option_headers
 oms = OMS()
 util = Utils()
 now = datetime.now()
@@ -53,13 +53,6 @@ class TradeBook:
         self.openTrades += 1
         self.fundUpdate(trd, fund)
 
-    def clean(self):
-        trds = self.trades
-        for trd in trds:
-            if trd.status not in ["open"]:
-                self.trades.remove(trd)
-                self.totalTrades = self.totalTrades - 1
-    
     def loadTrades(self, pos): 
         posList=pos.copy()
         s_ids = [x.security_id for x in pos]
@@ -101,8 +94,25 @@ class TradeBook:
         self.trades.remove(trd)
         self.fundUpdate(trd)
         util.deleteTradeStats(trd.trade_id)
+        trd.updateTrade()
         sleep(conf["order_delay"])
 
+    def clean(self):
+        trds = self.trades
+        trade_update_list = []
+        for trd in trds:
+            if trd.status not in ["open"]:
+                self.trades.remove(trd)
+                self.totalTrades = self.totalTrades - 1
+            else: trade_update_list.append(trd.trade_id)
+        res = trades.find_one_and_update(
+                { "trade_id" : {'$nin': trade_update_list} },
+                { "$set": {'status': 'close'} }
+            )
+        
+        trd_ar = [int(td.trade_id) for td in self.trades if trd.status in ["open"]]
+        util.pnlCleanup(trd_ar)
+            
     def validateTrade(self, index, pos):
         s_id = [];
         pos_idx = [x for x in pos if x.index == index]
@@ -190,15 +200,24 @@ class TradeBook:
         if self.openTrades > 0:
             data = [
                 {
-                    1: f"{'VIX: ' + str(round(float(self.vix['LTP']), 2)) + ' (' + str(round((float(self.vix['LTP']) - float(self.vix['open'])), 2)) + ')'}",
-                    2: f"{'NIFTY: ' + str(round(float(self.nifty.ltp), 2)) + ' (' + str(round(float(self.nifty.move), 2)) + ') (' + str(self.nifty.pcr) + ')'}",
-                    3: f"{'BANKNIFTY: ' + str(round(float(self.bank_nifty.ltp), 2)) + ' (' + str(round(float(self.bank_nifty.move), 2)) + ') (' + str(self.bank_nifty.pcr) + ')'}",
-                    # 4: f"{'FINNIFTY: ' + str(round(self.fin_nifty.spot, 2)) + ' (' + str(round(self.fin_nifty.move, 2)) + ')'}",
+                    1: f"{'NIFT (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.close))) + ' (' + str(round(float(self.nifty.move))) + ') [' + str(self.nifty.pcr) + ']'}",
+                    2: f"{'PRE (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.pre_close))) + ' (' + str(round(float(self.nifty.pre_move))) + ')'}",
+                    3: f"{'ATM: ' + str(round(float(self.nifty.straddle_price))) + ', VWAP: ' + str(round(float(self.nifty.vwap))) 
+                         + ', EMA: ' + str(round(float(self.nifty.ema_fast - self.nifty.ema_slow)))}",
                 },
                 {
-                    1: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",
-                    2: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk, 1)) + '%)'}",
-                    3: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
+                    1: f"{'BANK (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.close))) + ' (' + str(round(float(self.bank_nifty.move))) + ') [' + str(self.bank_nifty.pcr) + ']'}",
+                    2: f"{'PRE (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.pre_close))) + ' (' + str(round(float(self.bank_nifty.pre_move))) + ') '}",
+                    3: f"{'ATM: ' + str(round(float(self.bank_nifty.straddle_price))) + ', VWAP: ' + str(round(float(self.bank_nifty.vwap))) 
+                         + ', EMA: ' + str(round(float(self.bank_nifty.ema_fast - self.bank_nifty.ema_slow)))}",
+                    # 4: f"{'O=H: (' + str(self.bank_nifty.open_high_list) + '), O=L: (' + str(self.bank_nifty.open_high_list) + ')'}",
+                    
+                },
+                {
+                    1: f"{'VIX: ' + str(round(float(self.vix['LTP']), 2)) + ' (' + str(round((float(self.vix['LTP']) - float(self.vix['open'])), 2)) + ')'}",
+                    2: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",
+                    3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk)) + '%) - TGT: ' + str(round(self.target))}",
+                    # 4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward)) + '%)'}",
                     # 4: f"{'MAX/MIN: (' + str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ')'}",
                 }
             ]
@@ -206,6 +225,10 @@ class TradeBook:
             dframe = tabulate(df.values.tolist(), tablefmt="mixed_grid", floatfmt=".2f")
             print(dframe)
             self.printTrades()
+
+            # df = pd.concat([self.nifty.print(), self.bank_nifty.print()])
+            # dframe = tabulate(df.values.tolist(), option_headers, tablefmt="simple_outline", floatfmt=".2f")
+            # print(dframe)
         
     def to_dict(self):
         return self.__dict__

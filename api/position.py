@@ -46,7 +46,7 @@ class Position:
 
         if opt is not None: 
             self.oi = round(int(opt['oi'])/1000) if "oi" in opt else 0
-            if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if "OI" in opt else 0
+            # if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if "OI" in opt else 0
         
         if self.oi_pre == 0: self.oi_pre = self.oi
 
@@ -100,7 +100,7 @@ class Position:
 
         if opt is not None: 
             self.oi = round(int(opt['oi'])/1000) if "oi" in opt else 0
-            if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if "OI" in opt else 0
+            # if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if "OI" in opt else 0
             opt['oi'] = self.oi
             self.total_buy_quantity = opt["total_buy_quantity"] if "total_buy_quantity" in opt else 0
             self.total_buy_quantity = round(int(opt['total_buy_quantity'])/1000)

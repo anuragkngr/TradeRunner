@@ -7,11 +7,7 @@ conf = json.load(open("./data/configuration.json"))
 
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 expFmt = '%Y-%m-%d'
-expiry = {'NIFTY': ['2024-05-30', '2024-06-06', '2024-06-13', '2024-06-20', '2024-06-27'], 
-          'BANKNIFTY': ['2024-05-29', '2024-06-05', '2024-06-12', '2024-06-19', '2024-06-26'], 
-          'FINNIFTY': ['2024-05-14', '2024-05-21', '2024-05-28', '2024-06-04'], 
-          'SENSEX': ['2024-05-31'], 
-          'BANKEX': ['2024-06-03']}
+# expiry = {'NIFTY': ['2024-05-30'], 'BANKNIFTY': ['2024-05-29']}
 
 os.makedirs(f"./logs/{tm}", exist_ok=True)
 os.makedirs(f"./data/", exist_ok=True)
@@ -28,6 +24,7 @@ except Exception:
     token_df = token_df[(token_df['SEM_INSTRUMENT_NAME'] == 'OPTIDX') | (token_df['SEM_INSTRUMENT_NAME'] == 'INDEX')]
     token_df['SEM_EXPIRY_DATE'] = pd.to_datetime(token_df['SEM_EXPIRY_DATE'], format = 'mixed').apply(lambda x: x.date())
     token_df['INDEX'] = [str(scrip).split('-')[0] for scrip in token_df['SEM_TRADING_SYMBOL']]
+    token_df = token_df.sort_values(by='SEM_EXPIRY_DATE')
     token_df.to_csv(f"./data/api-scrip-master{'_' + tm}.csv", index=False)
 
 class Utils:
@@ -62,7 +59,18 @@ class Utils:
         for _trd in trd_data:
             if _trd['trade_id'] == trade_id:
                 return _trd  
-        return None      
+        return None 
+
+    def pnlCleanup(self, trades):
+        trd_data = []
+        with open("./data/pnl.txt", "r") as fileStore:
+            trd_data = fileStore.readline()
+            fileStore.close()
+        if isinstance(trd_data, str) and trd_data.strip() != "": 
+            trd_data = ast.literal_eval(trd_data)
+        else: trd_data = []
+        for _trd in trd_data:
+            if int(_trd['trade_id']) in trades: trd_data.remove(_trd)
 
     def updateTradeDetails(self, trade_details, act=None):
         trd_data = []
@@ -84,40 +92,33 @@ class Utils:
             print(traceback.format_exc())
             logger.error(f"utils, updateTradeDetails {traceback.format_exc()}")
 
-    def getExpiry(self, index):
-        expList = expiry[index]
-        for idx in expList:
-            exp = self.getExpiryDate(idx)
-            sys_dt = parser.parse(self.getDate(expFmt))
-            if exp >= sys_dt:
-                return exp.strftime(expFmt)
-        print("Expiry Dates Missing...")
-        exit(0)
-
     def securityId(self, index, strike, option, exp_num=1):
-        df = self.master;  s_id = -1; symbol = '--'
-        exp = self.getExpiry(index)
+        exp_cnt = 0
+        if exp_num == 0: exp_num = 1
+        df = self.master
         df = df[df['INDEX'] == index]
         df = df[df['SEM_OPTION_TYPE'] == option]
         df = df[df['SEM_STRIKE_PRICE'] == strike]
-        df = df[df['SEM_EXPIRY_DATE'] == exp]
-
-        s_id = str((list(df['SEM_SMST_SECURITY_ID']))[0])
-        symbol = (list(df['SEM_CUSTOM_SYMBOL']))[0]
-
-        return {'s_id': s_id, 'symbol': symbol} if len(df) == 1 else {'s_id': s_id, 'symbol': symbol}
+        for ind in df.index:
+            exp_dt = df['SEM_EXPIRY_DATE'][ind]
+            exp_dt = self.getDateExpFrmt(exp_dt)
+            sys_dt = self.getDate(expFmt)
+            if exp_dt >= sys_dt:
+                exp_cnt = exp_cnt + 1
+                if exp_cnt == exp_num:
+                    s_id = str(df['SEM_SMST_SECURITY_ID'][ind])
+                    symbol = df['SEM_CUSTOM_SYMBOL'][ind]
+                    return {'s_id': s_id, 'symbol': symbol} if int(s_id) > 0 else {'s_id': '-1', 'symbol': '--'}
     
     def getDate(self, fmt=None):
         if fmt is None: return datetime.now().strftime("%m-%d-%Y")
         else: return datetime.now().strftime(fmt)
-    def getDateExpFrmt(self):
-        return datetime.now().strftime("%Y-%m-%d")
+    def getDateExpFrmt(self, dt_str):
+        return parser.parse(dt_str).strftime(expFmt)
     def getTime(self):
         return datetime.now().strftime("%H:%M:%S")
     def getDateTime(self):
         return datetime.now().strftime("%d/%m/%Y, %H:%M:%S %p")
-    def getExpiryDate(self, dt):
-        return parser.parse(datetime.now().strftime(dt))
     def dictToDataFrame(self):
         return datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
     
