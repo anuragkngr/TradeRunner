@@ -69,7 +69,7 @@ class TradeBook:
                         if po.security_id == position['security_id']:
                             po.cost_price = position['cost_price']
                             trd_pos.append(po)
-                            if po in posList: posList.remove(po)
+                            # if po in posList: posList.remove(po)
                             break
                 else: 
                     trades.delete_one({'trade_id': trd['trade_id']})
@@ -126,6 +126,8 @@ class TradeBook:
         if pos_idx:
             trade = Trade(pos_idx, index)
             self.enterTrade(trade)
+        
+        return copy_pos_idx
 
     def updateIndex(self):
         self.vix = indexes.find_one({'security_id': int(idx_list['INDIA VIX'])})
@@ -140,7 +142,7 @@ class TradeBook:
         # tt = [td.index for td in self.trades if td.status == 'open']
         idx = list(set([po.index for po in pos]))
         if idx: 
-            for idx in idx: self.validateTrade(idx, pos)
+            for idx in idx: pos = self.validateTrade(idx, pos)
         for trd in self.trades: 
             trd.update(pos)
         self.pnl = sum(trd.pnl for trd in self.trades if trd.status in ["open"])
@@ -202,14 +204,14 @@ class TradeBook:
                 {
                     1: f"{'NIFT (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.close))) + ' (' + str(round(float(self.nifty.move))) + ') [' + str(self.nifty.pcr) + ']'}",
                     2: f"{'PRE (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.pre_close))) + ' (' + str(round(float(self.nifty.pre_move))) + ')'}",
-                    3: f"{'ATM: ' + str(round(float(self.nifty.straddle_price))) + ', VWAP: ' + str(round(float(self.nifty.vwap))) 
-                         + ', EMA: ' + str(round(float(self.nifty.ema_fast - self.nifty.ema_slow)))}",
+                    3: f"{'ATM(P=' + str(round(float(self.nifty.atm_price))) + ', V: ' + str(round(float(self.nifty.vwap))) + ', ' + str(round(float(self.nifty.atm_pcr))) 
+                         + ') EMA: ' + str(round(float(self.nifty.ema_fast - self.nifty.ema_slow)))}",
                 },
                 {
                     1: f"{'BANK (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.close))) + ' (' + str(round(float(self.bank_nifty.move))) + ') [' + str(self.bank_nifty.pcr) + ']'}",
                     2: f"{'PRE (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.pre_close))) + ' (' + str(round(float(self.bank_nifty.pre_move))) + ') '}",
-                    3: f"{'ATM: ' + str(round(float(self.bank_nifty.straddle_price))) + ', VWAP: ' + str(round(float(self.bank_nifty.vwap))) 
-                         + ', EMA: ' + str(round(float(self.bank_nifty.ema_fast - self.bank_nifty.ema_slow)))}",
+                    3: f"{'ATM(P=' + str(round(float(self.bank_nifty.atm_price))) + ', V: ' + str(round(float(self.bank_nifty.vwap))) + ', ' + str(round(float(self.bank_nifty.atm_pcr))) 
+                         + ') EMA: ' + str(round(float(self.bank_nifty.ema_fast - self.bank_nifty.ema_slow)))}",
                     # 4: f"{'O=H: (' + str(self.bank_nifty.open_high_list) + '), O=L: (' + str(self.bank_nifty.open_high_list) + ')'}",
                     
                 },

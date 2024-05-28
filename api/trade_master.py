@@ -34,8 +34,8 @@ if __name__ == "__main__":
                     trade_book.exitTrades()
                 if util.getTime() > conf["final_sl"] and trade_book.finalFlag:
                     trade_book.setFinalRisk()
-            # sleep(3)
-            sleep(conf["refresh_interval"])
+            # sleep()
+            # sleep(conf["refresh_interval"])
     except Exception as e:
         print(traceback.format_exc())
         logger.error(f"Trade Master Exception response: ex {traceback.format_exc()}")

@@ -2,64 +2,64 @@ import ast, logging, json, os, pymongo
 from datetime import datetime, time
 from time import sleep
 from dhanhq import dhanhq
-conf = json.load(open("./data/configuration.json"))
+conf = json.load(open('./data/configuration.json'))
 dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
 now = datetime.now()
-tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
-os.makedirs(f"./logs/{tm}", exist_ok=True)
-os.makedirs(f"./data/", exist_ok=True)
+tm = now.strftime('%Y') + '-' + now.strftime('%m') + '-' + now.strftime('%d')
+os.makedirs(f'./logs/{tm}', exist_ok=True)
+os.makedirs(f'./data/', exist_ok=True)
 logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/application.log",
-    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
+    level=logging.INFO, filename=f'./logs/{tm}/application.log',
+    filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 client = pymongo.MongoClient(conf['db_url_lcl'])
 dblist = client.list_database_names()
-mydb = client["tradestore"]
-options = mydb["options"]
-option_live = mydb["option_live"]
+mydb = client['tradestore']
+options = mydb['options']
+option_live = mydb['option_live']
 class Position:
-    def __init__(self, pos, trade=False):
-        self.index = pos["index"] if "index" in pos else None
-        if self.index is None and "tradingSymbol" in pos: 
-            self.index = pos["tradingSymbol"].split('-')[0] if '-' in pos["tradingSymbol"] else '-'
-        self.symbol = pos["tradingSymbol"] if "tradingSymbol" in pos else 0
-        self.security_id = pos["securityId"] if "securityId" in pos else 0
-        self.position_type = pos["positionType"] if "positionType" in pos else 0
-        self.exchange_segment = pos["exchangeSegment"] if "exchangeSegment" in pos else 0
-        self.product_type = pos["productType"] if "productType" in pos else 'MARGIN'
-        self.cost_price = pos["costPrice"] if "costPrice" in pos else 0
-        self.buy_avg = pos["buyAvg"] if "buyAvg" in pos else 0
-        self.buy_qty = pos["buyQty"] if "buyQty" in pos else 0
-        self.sell_avg = pos["sellAvg"] if "sellAvg" in pos else 0
-        self.sell_qty = pos["sellQty"] if "sellQty" in pos else 0
-        self.quantity = pos["netQty"] if "netQty" in pos else 0
-        self.realized = pos["realizedProfit"] if "realizedProfit" in pos else 0
-        self.unrealized = pos["unrealizedProfit"] if "unrealizedProfit" in pos else 0
-        self.expiry_date = pos["drvExpiryDate"] if "drvExpiryDate" in pos else '-'
-        self.option_type = pos["drvOptionType"] if "drvOptionType" in pos else 0
-        self.strike_price = pos["drvStrikePrice"] if "drvStrikePrice" in pos else 0
-
-        opt = options.find_one({'$and': [{'oi': { '$gt': 0 }}, {'security_id': int(self.security_id)}]}, sort=[('_id', -1)])
+    def __init__(self, pos, order=False):
+        self.index = pos['index'] if 'index' in pos else None
+        if self.index is None and 'tradingSymbol' in pos: 
+            self.index = pos['tradingSymbol'].split('-')[0] if '-' in pos['tradingSymbol'] else '-'
+        self.symbol = pos['tradingSymbol'] if 'tradingSymbol' in pos else 0
+        self.security_id = pos['securityId'] if 'securityId' in pos else 0
+        self.position_type = pos['positionType'] if 'positionType' in pos else 0
+        self.exchange_segment = pos['exchangeSegment'] if 'exchangeSegment' in pos else 0
+        self.product_type = pos['productType'] if 'productType' in pos else 'MARGIN'
+        self.cost_price = pos['costPrice'] if 'costPrice' in pos else 0
+        self.buy_avg = pos['buyAvg'] if 'buyAvg' in pos else 0
+        self.buy_qty = pos['buyQty'] if 'buyQty' in pos else 0
+        self.sell_avg = pos['sellAvg'] if 'sellAvg' in pos else 0
+        self.sell_qty = pos['sellQty'] if 'sellQty' in pos else 0
+        self.quantity = pos['netQty'] if 'netQty' in pos else 0
+        self.realized = pos['realizedProfit'] if 'realizedProfit' in pos else 0
+        self.unrealized = pos['unrealizedProfit'] if 'unrealizedProfit' in pos else 0
+        self.expiry_date = pos['drvExpiryDate'] if 'drvExpiryDate' in pos else '-'
+        self.option_type = pos['drvOptionType'] if 'drvOptionType' in pos else 0
+        self.strike_price = pos['drvStrikePrice'] if 'drvStrikePrice' in pos else 0
+        if order: return
+        opt = options.find_one({'oi': { '$gt': 0 }, 'security_id': int(self.security_id)}, sort=[('_id', -1)])
         # option_live = options.find_one({'security_id': int(self.security_id)}, sort=[('_id', -1)])
 
         self.oi = self.oi_pre = self.total_buy_quantity = self.total_sell_quantity = self.total_buy_quantity_pre = self.total_sell_quantity_pre = 0
 
         if opt is not None: 
-            self.oi = round(int(opt['oi'])/1000) if "oi" in opt else 0
-            # if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if "OI" in opt else 0
+            self.oi = round(int(opt['oi'])/1000) if 'oi' in opt else 0
+            # if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if 'OI' in opt else 0
         
         if self.oi_pre == 0: self.oi_pre = self.oi
 
         if opt is not None: 
-            self.total_buy_quantity = opt["total_buy_quantity"] if "total_buy_quantity" in opt else 0
+            self.total_buy_quantity = opt['total_buy_quantity'] if 'total_buy_quantity' in opt else 0
             self.total_buy_quantity = round(int(self.total_buy_quantity)/1000)
 
-            self.total_sell_quantity = opt["total_sell_quantity"] if "total_sell_quantity" in opt else 0
+            self.total_sell_quantity = opt['total_sell_quantity'] if 'total_sell_quantity' in opt else 0
             self.total_sell_quantity = round(int(self.total_sell_quantity)/1000)
         
-        # self.init_oi = opt["init_oi"] if "init_oi" in opt else 0
-        # self.init_oi_buy = opt["init_oi_buy"] if "init_oi_buy" in opt else 0
-        # self.init_oi_sell = opt["init_oi_sell"] if "init_oi_sell" in opt else 0
+        # self.init_oi = opt['init_oi'] if 'init_oi' in opt else 0
+        # self.init_oi_buy = opt['init_oi_buy'] if 'init_oi_buy' in opt else 0
+        # self.init_oi_sell = opt['init_oi_sell'] if 'init_oi_sell' in opt else 0
 
         self.price = (float(self.unrealized)/abs(float(self.quantity)))
 
@@ -95,17 +95,17 @@ class Position:
         self.option_type = pos.option_type if hasattr(pos, 'option_type') else 0
         self.strike_price = pos.strike_price if hasattr(pos, 'strike_price') else 0
 
-        opt = options.find_one({'$and': [{'oi': { '$gt': 0 }}, {'security_id': int(self.security_id)}]}, sort=[('_id', -1)])
+        opt = options.find_one({'oi': { '$gt': 0 }, 'security_id': int(self.security_id)}, sort=[('_id', -1)])
 
 
         if opt is not None: 
-            self.oi = round(int(opt['oi'])/1000) if "oi" in opt else 0
-            # if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if "OI" in opt else 0
+            self.oi = round(int(opt['oi'])/1000) if 'oi' in opt else 0
+            # if self.oi == 0: self.oi = round(int(opt['OI'])/1000) if 'OI' in opt else 0
             opt['oi'] = self.oi
-            self.total_buy_quantity = opt["total_buy_quantity"] if "total_buy_quantity" in opt else 0
+            self.total_buy_quantity = opt['total_buy_quantity'] if 'total_buy_quantity' in opt else 0
             self.total_buy_quantity = round(int(opt['total_buy_quantity'])/1000)
 
-            self.total_sell_quantity = opt["total_sell_quantity"] if "total_sell_quantity" in opt else 0
+            self.total_sell_quantity = opt['total_sell_quantity'] if 'total_sell_quantity' in opt else 0
             self.total_sell_quantity = round(int(opt['total_sell_quantity'])/1000)
 
         if self.oi > 0 and opt['oi'] > 0 and self.oi != opt['oi']:
@@ -147,8 +147,8 @@ class Position:
     def get(self, key):
         return self.__dict__[key]
     
-if __name__ == "__main__": 
-    # print("BANKNIFTY-Mar2024-48000-CE".su)
+if __name__ == '__main__': 
+    # print('BANKNIFTY-Mar2024-48000-CE'.su)
     exit()
     for po in pos:
         print(po)

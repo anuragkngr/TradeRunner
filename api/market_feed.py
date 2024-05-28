@@ -128,7 +128,7 @@ for i in range(11):
     instruments.append((2, security_id))
     feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
 # instruments = [(0, '13'), (0, '25'), (2, '38730'), (2, '46923')]
-instruments = instruments + [(2, '37758'), (2, '37051'), (2, '43889'), (2, '56914')]
+instruments = instruments + [(2, '37104'), (2, '43919')]
 # instruments = [(2, '43889'), (2, '37051')]
 # 37758
 print(len(feed_ids))
@@ -136,6 +136,8 @@ print(len(instruments))
 print(instruments)
 
 feed.delete_many({})
+# options.delete_many({})
+indexes.delete_many({})
 res = feed.insert_many(feed_ids)
 
 async def on_connect(instance):
@@ -166,6 +168,7 @@ def saveData(message):
                 { "sort": { "_id" : -1 } },
                 upsert=True
             )
+        print(res)
     else:
         if 'OI' in message : message['oi'] = message['OI']
         res = db_obj.find_one_and_update(
@@ -174,6 +177,7 @@ def saveData(message):
                 { "sort": { "_id" : -1 } },
                 upsert=True
             )
+        print(res)
     
 feed = marketfeed.DhanFeed(conf['dhan_id'],
     conf['dhan_token'],

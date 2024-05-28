@@ -50,10 +50,23 @@ class OMS():
 
     def getIndicators(self, index, spot):
         try:
-            atm_ce = util.securityId(index, spot, 'CE')
-            atm_pe = util.securityId(index, spot, 'PE')
+            atm_ce = util.securityId(index, spot[0], 'CE')
+            otm_ce = util.securityId(index, spot[1], 'CE')
+            itm_ce = util.securityId(index, spot[2], 'CE')
+
             atm_ce = self.price(atm_ce['s_id'], False, True)
+            otm_ce = self.price(otm_ce['s_id'], False, True)
+            itm_ce = self.price(itm_ce['s_id'], False, True)
+
+            atm_pe = util.securityId(index, spot[0], 'PE')
+            otm_pe = util.securityId(index, spot[1], 'PE')
+            itm_pe = util.securityId(index, spot[2], 'PE')
+
             atm_pe = self.price(atm_pe['s_id'], False, True)
+            otm_pe = self.price(otm_pe['s_id'], False, True)
+            itm_pe = self.price(itm_pe['s_id'], False, True)
+            
+            
             # res = json.load(open("./data/market_feed.json"))['data']
             res = self.price(fut_list[index], False, True, 'FUTIDX')
             response = {}
@@ -62,7 +75,14 @@ class OMS():
             atm_ce = self.getIndicator(atm_ce, index, 'vwap')
             atm_pe = self.getIndicator(atm_pe, index, 'vwap')
 
-            response['vwap'] = float(atm_ce) + float(atm_pe)
+            otm_ce = self.getIndicator(otm_ce, index, 'vwap')
+            otm_pe = self.getIndicator(otm_pe, index, 'vwap')
+
+            itm_ce = self.getIndicator(itm_ce, index, 'vwap')
+            itm_pe = self.getIndicator(itm_pe, index, 'vwap')
+
+            response['vwap'] = float(atm_ce) + float(atm_pe) + float(otm_ce) + float(otm_pe) + float(itm_ce) + float(itm_pe)
+            
             sma = self.getIndicator(res, index, 'sma')
             response['sma'] = sma
             ema = self.getIndicator(res, index, 'ema')
@@ -87,17 +107,12 @@ class OMS():
                 response = list(df['indicator'])[-1]#{'indicator': list(df['indicator'])[-1]}
                 # print(var)
             if indicator == 'sma':
-                var = df['indicator'] = ta.sma(df['close'], fast)
-                # print(var)
-                if slow > 0:
-                    var = df['indicator_2'] = ta.sma(df['close'], slow)
-                    # print(var)
+                df['indicator'] = ta.sma(df['close'], fast)
+                df['indicator_2'] = ta.sma(df['close'], slow)
             if indicator == 'ema':
-                var = df['indicator'] = ta.ema(df['close'], fast)
+                df['indicator'] = ta.ema(df['close'], fast)
+                df['indicator_2'] = ta.ema(df['close'], slow)
                 # print(var)
-                if slow > 0:
-                    var = df['indicator_2'] = ta.ema(df['close'], slow)
-                    # print(var)
             df.reset_index(inplace=True)
             # df['ema'] = ta.ema(df.close, 10, min_periods=1)
             # df['a_vwap'] = ta.vwap(df.high, df.low, df.close, df.volume, anchor='D')
@@ -338,29 +353,6 @@ if __name__ == "__main__":
     exit()
     res = oms.price(fut_list[index], False, True, 'FUTIDX')
     # res = options.find_one({'security_id': 43889})
-    df = pd.DataFrame(res)
-    tmp_list = []
-    for i in df["start_Time"]:
-        tmp = oms.dhan.convert_to_date_time(i)
-        tmp_list.append(tmp)
-    df['date'] = tmp_list
-    df.set_index('date', inplace=True)
-    df['indicator'] = ta.vwap(df['high'], df['low'], df['close'], df['volume'])
-    df.reset_index(inplace=True)
-    print(df)
-    exit()
-    res = oms.getIndicators(tradingsymbol)
-    # res = oms.price('46923', False, True, instrument_type='FUTIDX')
-    # res = oms.price('46923', False, True, instrument_type='OPTIDX')
-    # res = oms.price('BANKNIFTY', True, True)
-    # res = []
-    # res = oms.getIndicators('BANKNIFTY')
-    print(res)
-    # res = oms.price('BANKNIFTY', True)
-    # pos = pos['data']
-    # for po in pos:
-        # if po['positionType'] != 'CLOSED': res.append(po)
-    # print((json.dumps(res)))
     
     
 

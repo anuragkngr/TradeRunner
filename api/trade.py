@@ -178,7 +178,7 @@ class Trade:
             if self.sl < set_pnl['sl']:  self.sl = set_pnl['sl']
             if self.target > set_pnl['target']: self.target = set_pnl['target']
             
-        pnl = 0.0
+        # pnl = 0.0
         for pos in self.positions:
             for po in positions:
                 if po.security_id == pos.security_id and po.position_type not in ['CLOSED']:
@@ -192,7 +192,7 @@ class Trade:
         # util.updateTradeStats(self)
         self.updateTrade()
 
-        mins = int((datetime.now() - datetime.fromtimestamp(self.start)).total_seconds()/60)
+        # mins = int((datetime.now() - datetime.fromtimestamp(self.start)).total_seconds()/60)
         # if mins > conf['timer1']:
         #     sl = self.pnl - abs(self.pnl*0.75)
         #     if sl > self.sl: self.sl = sl

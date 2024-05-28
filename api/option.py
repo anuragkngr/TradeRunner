@@ -39,11 +39,19 @@ class Option:
 
     def to_dict(self, hl=None):
         if self.open_high:#hl is not None and hl=='high':# 
-            return {'open(H)': self.open, 'high': self.high,
-                'strike(H)': self.strike, 'option(H)': self.option_type}
+            return {'open(H)': self.open, 'high(H)': self.high, 'low(H)': self.low,
+                'strike(H)': self.strike, 'id(H)': self.security_id, 'option(H)': self.option_type}
         if self.open_low:#if hl is not None and hl=='low':#
-            return {'index': self.index[:4], 'open(L)': self.open, 'low': self.low,
-                'strike(L)': self.strike, 'option(L)': self.option_type}
+            return {'index': self.index[:4], 'open(L)': self.open, 'low(L)': self.low, 'high(L)': self.high,
+                'strike(L)': self.strike, 'id(L)': self.security_id, 'option(L)': self.option_type}
+
+    def to_db(self):
+        if self.open_high:
+            return {'index': self.index, 'open': self.open, 'high': self.high, 'low': self.low, 'strike': self.strike, 
+                'security_id': self.security_id, 'option_type': self.option_type, 'open_high': True}
+        if self.open_low:
+            return {'index': self.index, 'open': self.open, 'high': self.high, 'low': self.low, 'strike': self.strike, 
+                'security_id': self.security_id, 'option_type': self.option_type, 'open_high': False}
     
 if __name__ == "__main__": 
     # print("BANKNIFTY-Mar2024-48000-CE")
