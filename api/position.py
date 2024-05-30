@@ -18,7 +18,7 @@ mydb = client['tradestore']
 options = mydb['options']
 option_live = mydb['option_live']
 class Position:
-    def __init__(self, pos, order=False):
+    def __init__(self, pos, order=False, orderList=None):
         self.index = pos['index'] if 'index' in pos else None
         if self.index is None and 'tradingSymbol' in pos: 
             self.index = pos['tradingSymbol'].split('-')[0] if '-' in pos['tradingSymbol'] else '-'
@@ -28,6 +28,13 @@ class Position:
         self.exchange_segment = pos['exchangeSegment'] if 'exchangeSegment' in pos else 0
         self.product_type = pos['productType'] if 'productType' in pos else 'MARGIN'
         self.cost_price = pos['costPrice'] if 'costPrice' in pos else 0
+
+        if orderList is not None:
+            for po in orderList:
+                transactionType = 'SHORT' if po['transactionType'] == 'SELL' else 'LONG'
+                if po['securityId'] == self.security_id and self.position_type == transactionType:# and pos.option_type == po['drvOptionType']:
+                    self.cost_price = po['price']
+                    break
         self.buy_avg = pos['buyAvg'] if 'buyAvg' in pos else 0
         self.buy_qty = pos['buyQty'] if 'buyQty' in pos else 0
         self.sell_avg = pos['sellAvg'] if 'sellAvg' in pos else 0
@@ -57,26 +64,15 @@ class Position:
             self.total_sell_quantity = opt['total_sell_quantity'] if 'total_sell_quantity' in opt else 0
             self.total_sell_quantity = round(int(self.total_sell_quantity)/1000)
         
-        # self.init_oi = opt['init_oi'] if 'init_oi' in opt else 0
-        # self.init_oi_buy = opt['init_oi_buy'] if 'init_oi_buy' in opt else 0
-        # self.init_oi_sell = opt['init_oi_sell'] if 'init_oi_sell' in opt else 0
-
-        self.price = (float(self.unrealized)/abs(float(self.quantity)))
-
-        if self.position_type == 'LONG':
-            if float(self.sell_avg) > 0:
-                self.pnl = float(self.unrealized)
-            else:
-                deltaPrice = (float(self.buy_avg) - float(self.cost_price))*abs(float(self.quantity))
-                self.pnl = float(self.unrealized) + deltaPrice
-            self.price = float(self.buy_avg) + self.price# + float(self.realized)
-        else : 
-            if float(self.buy_avg) > 0:
-                self.pnl = (float(self.unrealized))*(-1)
-            else:
-                deltaPrice = (float(self.sell_avg) - float(self.cost_price))*abs(float(self.quantity))
-                self.pnl = (float(self.unrealized) + deltaPrice)*(-1)
-            self.price = float(self.sell_avg) + self.price# - (float(self.realized)*(-1))
+        res = options.find_one(
+                { 'security_id' : int(self.security_id) },
+                sort=[('_id', -1)]
+            )
+        
+        self.price = float(res['LTP']) if 'LTP' in res else -1
+        self.pnl = self.unrealized if self.price < 0 else -1
+        if self.price > 0: self.pnl = (self.price - self.cost_price) * abs(self.quantity)
+        if self.position_type == 'SHORT': self.pnl = self.pnl*-1
 
     def update(self, pos):
         self.index = pos.index if hasattr(pos, 'index') else '-'
@@ -118,27 +114,15 @@ class Position:
                 self.total_sell_quantity_pre = round(int(self.total_sell_quantity)/1000)
                 self.total_sell_quantity = round(int(opt['total_sell_quantity'])/1000)
 
-        # if self.init_oi == 0 and self.oi > 0:
-        #     self.init_oi = self.oi
-        #     self.init_oi_buy = self.oi_buy
-        #     self.init_oi_sell = self.oi_sell
-
-        self.price = (float(self.unrealized)/abs(float(self.quantity)))
-        if self.position_type == 'LONG':
-            if float(self.sell_avg) > 0:
-                self.pnl = float(self.unrealized)
-            else:
-                deltaPrice = (float(self.buy_avg) - float(self.cost_price))*abs(float(self.quantity))
-                self.pnl = float(self.unrealized) + deltaPrice
-            self.price = float(self.buy_avg) + self.price
-        else : 
-            if float(self.buy_avg) > 0:
-                self.pnl = (float(self.unrealized))*(-1)
-            else:
-                deltaPrice = (float(self.sell_avg) - float(self.cost_price))*abs(float(self.quantity))
-                self.pnl = (float(self.unrealized) + deltaPrice)*(-1)
-            self.price = float(self.sell_avg) + self.price
-        # self.updatePosition()
+        res = options.find_one(
+                { 'security_id' : int(self.security_id) },
+                sort=[('_id', -1)]
+            )
+        
+        self.price = float(res['LTP']) if 'LTP' in res else -1
+        self.pnl = self.unrealized if self.price < 0 else -1
+        if self.price > 0: self.pnl = (self.price - self.cost_price) * abs(self.quantity)
+        if self.position_type == 'SHORT': self.pnl = self.pnl*-1
 
     def to_dict(self):
         return self.__dict__

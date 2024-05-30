@@ -25,6 +25,7 @@ logger = logging.getLogger()
 
 class TradeBook: 
     def __init__(self): 
+        trades.delete_many({})
         self.totalTrades = 0
         self.openTrades = 0
         self.closeTrades = 0
@@ -69,7 +70,7 @@ class TradeBook:
                         if po.security_id == position['security_id']:
                             po.cost_price = position['cost_price']
                             trd_pos.append(po)
-                            # if po in posList: posList.remove(po)
+                            if po in posList: posList.remove(po)
                             break
                 else: 
                     trades.delete_one({'trade_id': trd['trade_id']})
@@ -142,7 +143,7 @@ class TradeBook:
         # tt = [td.index for td in self.trades if td.status == 'open']
         idx = list(set([po.index for po in pos]))
         if idx: 
-            for idx in idx: pos = self.validateTrade(idx, pos)
+            for idx in idx: self.validateTrade(idx, pos.copy())
         for trd in self.trades: 
             trd.update(pos)
         self.pnl = sum(trd.pnl for trd in self.trades if trd.status in ["open"])

@@ -47,11 +47,11 @@ class Option:
 
     def to_db(self):
         if self.open_high:
-            return {'index': self.index, 'open': self.open, 'high': self.high, 'low': self.low, 'strike': self.strike, 
-                'security_id': self.security_id, 'option_type': self.option_type, 'open_high': True}
+            return {'index': self.index, 'open': self.open, 'high': self.high, 'low': self.low, 'strike': self.strike, 'security_id': self.security_id,
+                 'option_type': self.option_type, 'close': self.close, 'ltp': self.ltp, 'ltt': self.ltt, 'open_high': True}
         if self.open_low:
-            return {'index': self.index, 'open': self.open, 'high': self.high, 'low': self.low, 'strike': self.strike, 
-                'security_id': self.security_id, 'option_type': self.option_type, 'open_high': False}
+            return {'index': self.index, 'open': self.open, 'high': self.high, 'low': self.low, 'strike': self.strike, 'security_id': self.security_id,
+                 'option_type': self.option_type, 'close': self.close, 'ltp': self.ltp, 'ltt': self.ltt, 'open_high': False}
     
 if __name__ == "__main__": 
     # print("BANKNIFTY-Mar2024-48000-CE")

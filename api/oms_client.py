@@ -62,8 +62,8 @@ def placeOrder(position, transaction_type) -> bool:
             
 def execOrder(position, transaction_type) -> bool:
     try:
-        # res = 'OK'
-        res = placeOrder(position, transaction_type)
+        res = 'OK'
+        # res = placeOrder(position, transaction_type)
     except Exception:
         logger.info(f"OMS Client: Exception execOrder response: {traceback.format_exc()}")
         print(f"OMS Client: Exception execOrder response: {traceback.format_exc()}")
@@ -122,7 +122,8 @@ def pObj(index, strike, option, position, lots):
     
 if __name__ == "__main__": 
     
-    index = 'NIFTY'
+    # index = 'NIFTY'
+    index = 'BANKNIFTY'
 
     slab = 50 if index == 'NIFTY' else 100; lots = 4
     # c_sell = p_sell = c_buy = p_buy = None

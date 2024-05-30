@@ -147,9 +147,11 @@ class OMS():
             logger.info(f"OMS API  Exception positions response: {traceback.format_exc()}")
             self.refreshConnection('positions')
             # res = self.dhan.get_positions()
+        order_list = self.dhan.get_order_list()['data']
+
         for po in res['data'] :
             if po["positionType"] not in ['CLOSED']:
-                pos.append(Position(po))
+                pos.append(Position(po, orderList=order_list))
         return [] if not pos else pos
     
     def getFundLimits(self):
@@ -172,7 +174,7 @@ class OMS():
         return None if res is None or res['data'] is None or res['data'] == '' else res['data']
 
     def updateCostPrice(self, positions):
-        sleep(1)
+        # sleep(1)
         res = self.getOrderBook()
         for pos in positions:
             self.updatePositionCostPrice(res, pos)
@@ -181,7 +183,7 @@ class OMS():
     def updatePositionCostPrice(self, res, pos):
         for po in res:
             transactionType = 'SHORT' if po['transactionType'] == 'SELL' else 'LONG'
-            if po['securityId'] == pos.security_id and pos.position_type == transactionType and pos.option_type == po['drvOptionType']:
+            if po['securityId'] == pos.security_id and pos.position_type == transactionType:# and pos.option_type == po['drvOptionType']:
                 pos.cost_price = po['price']
                 break
             # order = sorted(order, key=lambda x: datetime.strptime(x['exchtime'], '%d-%b-%Y %H:%M:%S'))

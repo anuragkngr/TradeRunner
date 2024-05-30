@@ -99,7 +99,7 @@ class Index:
 
         if atm_call_oi > 0: self.atm_pcr = round(atm_put_oi/atm_call_oi, 2)
 
-        self.indicators = oms.getIndicators(index, spot_atm)
+        self.indicators = None#oms.getIndicators(index, spot_atm)
         # ohlc_fut = self.indicators['ohlc']
         # self.ltp_fut = ohlc_fut['ltp']
         # self.move_fut = float(ohlc_fut['close']) - float(ohlc_fut['open'])
@@ -126,6 +126,8 @@ class Index:
         else: self.pre_trend = 'N'
 
         self.open_high_list = [opt.to_db() for opt in all_options if opt.open_high]
+
+        # open_high_low.delete_many( {'index': index} )
         
         if len(self.open_high_list) > 0:
             llist = []
@@ -198,8 +200,11 @@ class Index:
     
 if __name__ == "__main__": 
     idx = Index('NIFTY')
+    # idx.print()
 
-    idx.print()
+    idx = Index('BANKNIFTY')
+    # idx.print()
+
     exit(0)
     # print(idx)
     # top = idx.open_low_list

@@ -41,7 +41,7 @@ class Trade:
         self.strategy = 'selling'
         self.trade_id = str(round(datetime.now().timestamp())) if trade_id is None else trade_id
         self.start = datetime.now().timestamp()
-        self.positions = oms.updateCostPrice(positions)
+        self.positions = positions#oms.updateCostPrice(positions)
         buying_positions = [p.price for p in self.positions if p.position_type == 'LONG']
         buying_count = len(buying_positions) if buying_positions is not None else 0
         buying_sum = sum(p.price for p in self.positions if p.position_type == 'LONG')
@@ -198,10 +198,18 @@ class Trade:
         #     if sl > self.sl: self.sl = sl
         if self.pnl > 0:
             if self.pnl > 500 and self.sl < 200: self.sl = 200
-            if self.pnl > 1000 and self.sl < 800: self.sl = 800
-            if self.pnl > 2000 and self.sl < 2000: self.sl = 1800
+            if self.pnl > 1000 and self.sl < 400: self.sl = 400
+            if self.pnl > 1500 and self.sl < 800: self.sl = 800
+            if self.pnl > 2000 and self.sl < 1400: self.sl = 1400
+            if self.pnl > 3000 and self.sl < 2000: self.sl = 2000
+            if self.pnl > 4000 and self.sl < 3000: self.sl = 3000
+            if self.pnl > 5000 and self.sl < 4000: self.sl = 4000
+            if self.pnl > 6000 and self.sl < 5000: self.sl = 5000
+            if self.pnl > 7000 and self.sl < 6000: self.sl = 6000
+            if self.pnl > 8000 and self.sl < 8000: self.sl = 7000
+            if self.pnl > 9000 and self.sl < 8000: self.sl = 8000
             if self.pnl > self.target:
-                sl = float(self.pnl) - 200.0
+                sl = float(self.pnl) - 1000#float(self.pnl)*0.2
                 logger.info(f"Trade, update Trade SL: {self.sl}, New SL: {sl}, self.pnl: {self.pnl}")
                 if sl > self.sl: self.sl = sl
         # if mins > conf['timer4']:

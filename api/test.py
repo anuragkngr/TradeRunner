@@ -2,47 +2,61 @@
 # nest_asyncio.apply()
 # import asyncio
 from utils import Utils
-import warnings
+import warnings, pymongo, json
+conf = json.load(open("./data/configuration.json"))
+client = pymongo.MongoClient(conf['db_url_lcl'])
+mydb = client['tradestore']
+options = mydb['options']
 warnings.filterwarnings('ignore')
 import json, pandas as pd, ast, traceback
 import pandas_ta as ta, logging
 # from alphaVantageAPI.alphavantage import AlphaVantage
 # import watchlist
 from datetime import datetime, time, timedelta
-conf = json.load(open("./data/configuration.json"))
+
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
-from time import sleep
+# from time import sleep
 from dhanhq import dhanhq, marketfeed
-from order_management_system import OMS
-oms = OMS()
+# from order_management_system import OMS
+# oms = OMS()
 dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
 instruments = []#[(1, "1333"),(0,"13")]
 # subscription_code = marketfeed.Ticker
-subscription_code = marketfeed.Quote
-util = Utils()
-res = json.load(open('./data/market_feed.json'))
-df = pd.DataFrame(res['data'])
-tmp_list = []
-for i in df["start_Time"]:
-    tmp = dhan.convert_to_date_time(i)
-    tmp_list.append(tmp)
-df['date'] = tmp_list
+# subscription_code = marketfeed.Quote
+# util = Utils()
+# res = json.load(open('./data/market_feed.json'))
+# df = pd.DataFrame(res['data'])
+# tmp_list = []
+# for i in df["start_Time"]:
+#     tmp = dhan.convert_to_date_time(i)
+#     tmp_list.append(tmp)
+# df['date'] = tmp_list
 
+# res = dhan.get_order_list()
+# res = dhan.get_positions()
+# print(json.dumps(res))
 
-CommonStrategy = ta.CommonStrategy
-CommonStrategy = ta.AllStrategy
-print("name =", CommonStrategy.name)
-print("description =", CommonStrategy.description)
-print("created =", CommonStrategy.created)
-print("ta =", CommonStrategy.ta)
+res = list(options.find_one(
+                { 'security_id' : 43889 },
+                sort=[('_id', -1)]
+                # { 'sort': { '_id' : -1 } },
+            ))
+print(res)
+exit()
+# CommonStrategy = ta.CommonStrategy
+# CommonStrategy = ta.AllStrategy
+# print("name =", CommonStrategy.name)
+# print("description =", CommonStrategy.description)
+# print("created =", CommonStrategy.created)
+# print("ta =", CommonStrategy.ta)
 
-custom_a = ta.Strategy(name="A", ta=[{"kind": "sma", "length": 50}, {"kind": "sma", "length": 200}])
-print(custom_a)
+# custom_a = ta.Strategy(name="A", ta=[{"kind": "sma", "length": 50}, {"kind": "sma", "length": 200}])
+# print(custom_a)
 
 def priceBankNifty(symbol = "13"):
         
