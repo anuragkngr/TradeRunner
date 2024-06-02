@@ -38,15 +38,16 @@ instruments = []#[(1, "1333"),(0,"13")]
 # df['date'] = tmp_list
 
 # res = dhan.get_order_list()
-# res = dhan.get_positions()
-# print(json.dumps(res))
+res = dhan.get_positions()
+res = [x for x in res['data'] if x['positionType'] != 'CLOSED']
+print(json.dumps(res))
 
-res = list(options.find_one(
-                { 'security_id' : 43889 },
-                sort=[('_id', -1)]
-                # { 'sort': { '_id' : -1 } },
-            ))
-print(res)
+# res = list(options.find_one(
+#                 { 'security_id' : 43889 },
+#                 sort=[('_id', -1)]
+#                 # { 'sort': { '_id' : -1 } },
+#             ))
+# print(res)
 exit()
 # CommonStrategy = ta.CommonStrategy
 # CommonStrategy = ta.AllStrategy

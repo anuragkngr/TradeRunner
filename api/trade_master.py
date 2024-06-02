@@ -34,7 +34,7 @@ if __name__ == "__main__":
                     trade_book.exitTrades()
                 if util.getTime() > conf["final_sl"] and trade_book.finalFlag:
                     trade_book.setFinalRisk()
-            # sleep(10)
+            sleep(1)
             # sleep(conf["refresh_interval"])
     except Exception as e:
         print(traceback.format_exc())

@@ -1,7 +1,10 @@
 import json, logging
 from datetime import datetime
+from dateutil import parser
 conf = json.load(open("./data/configuration.json"))
 now = datetime.now()
+from utils import Utils
+util = Utils()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
     level=logging.INFO, filename=f"./logs/{tm}/application.log",
@@ -15,14 +18,16 @@ class Option:
         self.exchange_segment = feed['exchange_segment'] if 'exchange_segment' in feed else -1
         self.security_id = feed['security_id'] if 'security_id' in feed else -1
         self.strike = strike if strike is not None else -1
-        self.ltt = feed['LTT'] if 'LTT' in feed else None
-        self.open = feed["open"] if "open" in feed else -1
-        self.high = feed["high"] if "high" in feed else -1
-        self.low = feed["low"] if "low" in feed else -1
-        self.close = feed["close"] if "close" in feed else -1
-        self.ltp = feed["LTP"] if "close" in feed else -1
-        self.move = float(self.close) - float(self.open)
-        self.movePercent = self.move * 100 / float(self.close)
+        self.ltt = feed['LTT'] if 'LTT' in feed else parser.parse(util.getDate() + ' ' + util.getTime()[:-3] + ':00')
+        self.open = float(feed["open"]) if "open" in feed else -1
+        self.high = float(feed["high"]) if "high" in feed else -1
+        self.low = float(feed["low"]) if "low" in feed else -1
+        self.close = float(feed["close"]) if "close" in feed else -1
+        self.ltp = float(feed["LTP"]) if "LTP" in feed else -1
+        self.oi = feed["oi"] if "oi" in feed else -1
+        self.volume = feed["volume"] if "volume" in feed else -1
+        self.move = self.close - self.open
+        self.movePercent = self.move * 100 / self.close
         self.option_type = option_type
 
         self.total_buy_quantity = feed['total_buy_quantity'] if 'total_buy_quantity' in feed else 0
@@ -39,19 +44,19 @@ class Option:
 
     def to_dict(self, hl=None):
         if self.open_high:#hl is not None and hl=='high':# 
-            return {'open(H)': self.open, 'high(H)': self.high, 'low(H)': self.low,
+            return {'open(H)': self.open, 'high(H)': self.high, 'low(H)': self.low, 'LTP(H)': self.ltp,
                 'strike(H)': self.strike, 'id(H)': self.security_id, 'option(H)': self.option_type}
         if self.open_low:#if hl is not None and hl=='low':#
-            return {'index': self.index[:4], 'open(L)': self.open, 'low(L)': self.low, 'high(L)': self.high,
+            return {'index': self.index[:4], 'open(L)': self.open, 'low(L)': self.low, 'high(L)': self.high, 'LTP(H)': self.ltp,
                 'strike(L)': self.strike, 'id(L)': self.security_id, 'option(L)': self.option_type}
 
     def to_db(self):
         if self.open_high:
-            return {'index': self.index, 'open': self.open, 'high': self.high, 'low': self.low, 'strike': self.strike, 'security_id': self.security_id,
-                 'option_type': self.option_type, 'close': self.close, 'ltp': self.ltp, 'ltt': self.ltt, 'open_high': True}
+            return {'index': self.index, 'ltp': self.ltp, 'ltt': self.ltt, 'open': self.open, 'high': self.high, 'low': self.low, 'ltp': self.ltp,
+                  'strike': self.strike, 'security_id': self.security_id, 'oi': self.oi, 'volume': self.volume, 'option_type': self.option_type, 'close': self.close, 'open_high': True}
         if self.open_low:
-            return {'index': self.index, 'open': self.open, 'high': self.high, 'low': self.low, 'strike': self.strike, 'security_id': self.security_id,
-                 'option_type': self.option_type, 'close': self.close, 'ltp': self.ltp, 'ltt': self.ltt, 'open_high': False}
+            return {'index': self.index, 'ltp': self.ltp, 'ltt': self.ltt, 'open': self.open, 'high': self.high, 'low': self.low, 'ltp': self.ltp,
+                  'strike': self.strike, 'security_id': self.security_id, 'oi': self.oi, 'volume': self.volume, 'option_type': self.option_type, 'close': self.close, 'open_high': False}
     
 if __name__ == "__main__": 
     # print("BANKNIFTY-Mar2024-48000-CE")

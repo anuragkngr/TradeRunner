@@ -3,6 +3,8 @@ from order_management_system import OMS, idx_list
 from datetime import datetime
 from utils import Utils
 from option import Option
+from dateutil import parser
+from time import sleep, time
 from tabulate import tabulate
 conf = json.load(open("./data/configuration.json"))
 oms = OMS()
@@ -25,16 +27,16 @@ class Index:
     def __init__(self, index, index_trade_start=None):
 
         slab = 100 if index == "BANKNIFTY" else 50
-        idx = indexes.find_one({'security_id': int(idx_list[index])}, sort=[('_id', -1)])
-        self.open = idx["open"] if "open" in idx else -1
-        self.high = idx["high"] if "high" in idx else -1
-        self.low = idx["low"] if "low" in idx else -1
-        self.ltp = idx["LTP"] if "LTP" in idx else -1
-        self.close = idx["close"] if "close" in idx else -1
+        idx = indexes.find_one({'security_id': int(idx_list[index])}, sort=[('LTT', -1)])
+        self.open = idx["open"] if idx is not None and "open" in idx else -1
+        self.high = idx["high"] if idx is not None and "high" in idx else -1
+        self.low = idx["low"] if idx is not None and "low" in idx else -1
+        self.ltp = idx["LTP"] if idx is not None and "LTP" in idx else -1
+        self.close = idx["close"] if idx is not None and "close" in idx else -1
         self.move = float(self.close) - float(self.open)
         self.movePercent = self.move * 100 / float(self.close)
         if index_trade_start is not None: self.open = index_trade_start
-        self.ltt = idx["LTT"] if "LTT" in idx else -1
+        self.ltt = idx['LTT'] if 'LTT' in idx else parser.parse(util.getDate() + ' ' + util.getTime()[:-3] + ':00')
         if self.move < ((-1)*slab): self.trend = 'D'
         elif self.move > slab: self.trend = 'U'
         else: self.trend = 'N'

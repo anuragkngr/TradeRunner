@@ -17,7 +17,7 @@ if not file_path.exists():
         fileStore.close()
 logger = logging.getLogger()
 
-time_limit = 35
+time_limit = 15
 
 print('Feed Runner starting ...')
 logger.info('Feed Runner starting ...')
@@ -34,7 +34,7 @@ while True:
             )
         updated_at = parser.parse(res['updated_at'])
         dif = (datetime.now() - updated_at).total_seconds()
-        if dif > time_limit:
+        if dif > time_limit/2:
             print(f'Market Feed Stopped from {dif}, restarting ...')
             logger.info(f'Market Feed Stopped from {dif}, restarting ...')
             Popen('python api/market_feed.py', creationflags=CREATE_NEW_CONSOLE, shell=True)

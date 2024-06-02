@@ -25,7 +25,7 @@ logger = logging.getLogger()
 
 class TradeBook: 
     def __init__(self): 
-        trades.delete_many({})
+        # trades.delete_many({})
         self.totalTrades = 0
         self.openTrades = 0
         self.closeTrades = 0
@@ -217,7 +217,7 @@ class TradeBook:
                     
                 },
                 {
-                    1: f"{'VIX: ' + str(round(float(self.vix['LTP']), 2)) + ' (' + str(round((float(self.vix['LTP']) - float(self.vix['open'])), 2)) + ')'}",
+                    1: f"{'VIX: ' + str(round(float(self.vix['close'] if self.vix is not None else -1), 2)) + ' (' + str(round((float(self.vix['LTP'] if self.vix is not None else -1) - float(self.vix['open'] if self.vix is not None else -1)), 2)) + ')'}",
                     2: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",
                     3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk)) + '%) - TGT: ' + str(round(self.target))}",
                     # 4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward)) + '%)'}",

@@ -1,6 +1,6 @@
 from utils import Utils
 from position import Position
-from order_management_system import OMS
+from order_management_system import OMS, idx_list
 import traceback, json, logging, warnings, pymongo
 from datetime import datetime
 conf = json.load(open("./data/configuration.json"))
@@ -12,6 +12,7 @@ client = pymongo.MongoClient(conf['db_url_lcl'])
 dblist = client.list_database_names()
 mydb = client["tradestore"]
 open_high_low = mydb["open_high_low"]
+indexes = mydb["indexes"]
 util = Utils()
 oms = OMS()
 now = datetime.now()
@@ -40,7 +41,7 @@ def positions():
 
 def placeOrder(position, transaction_type) -> bool:
     logger.info(str(position))
-    print(f" position: {position.to_dict()}")
+    print(f" {transaction_type}, position: {position.to_dict()}")
     try:
         res = dhan.place_order(
         security_id = str(position.security_id), 
@@ -62,8 +63,9 @@ def placeOrder(position, transaction_type) -> bool:
             
 def execOrder(position, transaction_type) -> bool:
     try:
-        res = 'OK'
+        res = 'OMS client: Order offline'
         # res = placeOrder(position, transaction_type)
+        print(f'{transaction_type}, {position.to_dict()} \n {res}')
     except Exception:
         logger.info(f"OMS Client: Exception execOrder response: {traceback.format_exc()}")
         print(f"OMS Client: Exception execOrder response: {traceback.format_exc()}")
@@ -76,7 +78,7 @@ def closeAllPositions(index=None):
     pos = [po for po in pos if index is None or po.index == index]
     closePositions(pos)
     logger.info(f"OMS Client: CloseAllPositions Completed...")
-    print(f"OMS Client: CloseAllPositions Completed...")
+    print(f"\nOMS Client: CloseAllPositions Completed...")
 
 def closePositions(positions):
     logger.info(f"OMS Client: ClosePositions Starting...")
@@ -89,7 +91,7 @@ def closePositions(positions):
             logger.info(f"OMS Client: ClosePositions ex {traceback.format_exc()}")
             print(f"OMS Client: ClosePositions ex {traceback.format_exc()}")
     logger.info(f"OMS Client: ClosePositions Completed...")
-    print(f"OMS Client: ClosePositions Completed...")
+    print(f"\nOMS Client: ClosePositions Completed...")
     sleep(.2)
 
 def openPositions(positions):
@@ -106,8 +108,8 @@ def openPositions(positions):
             logger.info(f"OMS Client: OpenPositions ex {traceback.format_exc()}")
             print(f"OMS Client: OpenPositions ex {traceback.format_exc()}")
     logger.info(f"OMS Client: openPositions Completed...")
-    print(f"OMS Client: openPositions Completed...")
-    sleep(.2)
+    print(f"\nOMS Client: openPositions Completed...")
+    # sleep(10)
 
 def pObj(index, strike, option, position, lots):
     quantity = 25 if index == 'NIFTY' else 15
@@ -122,42 +124,38 @@ def pObj(index, strike, option, position, lots):
     
 if __name__ == "__main__": 
     
-    # index = 'NIFTY'
-    index = 'BANKNIFTY'
+    index = 'NIFTY'
+    # index = 'BANKNIFTY'
+    # idx = indexes.find_one({'security_id': int(idx_list[index])}, sort=[('LTT', -1)])
+    spot = oms.spotStrike(index)
 
-    slab = 50 if index == 'NIFTY' else 100; lots = 4
+    slab = 50 if index == 'NIFTY' else 100; lots = 4; hedge_strike_gap=20
+    stb_str = slab*10 if index == 'NIFTY' else slab*10
+   
     # c_sell = p_sell = c_buy = p_buy = None
     #call duwn, sell CALL
-    c_sell = list(open_high_low.find({'index': index, 'open_high': True, 'option_type': 'CALL'}))
-    if len(c_sell) > 0: 
-        c_sell = sorted(c_sell, key=lambda x: x['strike'])
-        print(f'c_sell 1: {c_sell}')
+    c_sell = open_high_low.find_one({'index': index, 'open_high': True, 'option_type': 'CALL', 'strike': {'$lte': spot}}, sort=[('strike', -1)])
+    if c_sell is not None: 
+        c_sell = sorted([c_sell], key=lambda x: x['strike'])
         c_sell = int(c_sell[0]['strike'])
-        print(f'c_sell 2: {c_sell}')
     else: c_sell = None
     #put duwn, sell PUT
-    p_sell = list(open_high_low.find({'index': index, 'open_high': True, 'option_type': 'PUT'}))
-    if len(p_sell) > 0: 
-        p_sell = sorted(p_sell, key=lambda x: x['strike'], reverse=True)
-        print(f'p_sell 1: {p_sell}')
+    p_sell = open_high_low.find_one({'index': index, 'open_high': True, 'option_type': 'PUT', 'strike': {'$gte': spot}}, sort=[('strike', 1)])
+    if p_sell is not None: 
+        p_sell = sorted([p_sell], key=lambda x: x['strike'], reverse=True)
         p_sell = int(p_sell[0]['strike'])
-        print(f'p_sell 2: {p_sell}')
     else: p_sell = None
     #call up, buy CALL
-    c_buy = list(open_high_low.find({'index': index, 'open_high': False, 'option_type': 'CALL'}))
-    if len(c_buy) > 0: 
-        c_buy = sorted(c_buy, key=lambda x: x['strike'])
-        print(f'c_buy 1: {c_buy}')
+    c_buy = open_high_low.find_one({ 'index': index, 'open_high': False, 'option_type': 'CALL', 'strike': {'$lte': spot}}, sort=[('strike', -1)])
+    if c_buy is not None: 
+        c_buy = sorted([c_buy], key=lambda x: x['strike'])
         c_buy = int(c_buy[0]['strike'])
-        print(f'c_buy 2: {c_buy}')
     else: c_buy = None
     #put up, buy PUT
-    p_buy = list(open_high_low.find({'index': index, 'open_high': False, 'option_type': 'PUT'}))
-    if len(p_buy) > 0: 
-        p_buy = sorted(p_buy, key=lambda x: x['strike'], reverse=True)
-        print(f'p_buy 1: {p_buy}')
+    p_buy = open_high_low.find_one({'index': index, 'open_high': False, 'option_type': 'PUT', 'strike': {'$gte': spot}}, sort=[('strike', 1)])
+    if p_buy is not None: 
+        p_buy = sorted([p_buy], key=lambda x: x['strike'], reverse=True)
         p_buy = int(p_buy[0]['strike'])
-        print(f'p_buy 2: {p_buy}')
     else: p_buy = None
 
     if c_buy is not None:
@@ -169,12 +167,18 @@ if __name__ == "__main__":
         res = openPositions(orders)
 
     if c_sell is not None:
-        orders = [ pObj(index, (c_sell + (slab + (8*slab))), 'CE', 'B', lots),
+        spot_strike = c_sell + (hedge_strike_gap*slab)
+        spot_strike = round(spot_strike / stb_str) * stb_str
+
+        orders = [ pObj(index, spot_strike, 'CE', 'B', lots),
                   pObj(index, c_sell, 'CE', 'S', lots) ]
         res = openPositions(orders)
 
     if p_sell is not None:
-        orders = [ pObj(index, (p_sell + (slab - (8*slab))), 'PE', 'B', lots),
+        spot_strike = p_sell - (hedge_strike_gap*slab)
+        spot_strike = round(spot_strike / stb_str) * stb_str
+
+        orders = [ pObj(index, spot_strike, 'PE', 'B', lots),
                   pObj(index, p_sell, 'PE', 'S', lots) ]
         res = openPositions(orders)                
 

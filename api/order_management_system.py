@@ -267,7 +267,7 @@ class OMS():
         except Exception:
             logger.info(f"Positions API  Exception rmsLimit response: {traceback.format_exc()}")
             self.refreshConnection('spotStrike')
-        spot_price = float(spot_price['close']) if 'close' in spot_price else -1
+        spot_price = float(spot_price['LTP']) if 'LTP' in spot_price else -1
         strike = round(spot_price / slab) * slab
         return strike
 
@@ -275,12 +275,12 @@ class OMS():
         res=[]
         if security.isnumeric():
             if security < 1000:
-                res = indexes.find_one({'security_id': security}, sort=[('_id', -1)])
-            else : res = options.find_one({'security_id': security}, sort=[('_id', -1)])
+                res = indexes.find_one({'security_id': security}, sort=[('LTT', -1)])
+            else : res = options.find_one({'security_id': security}, sort=[('LTT', -1)])
             if not res: res = self.price(security)
 
         else: 
-            res = indexes.find_one({'security_id': int(idx_list[security])}, sort=[('_id', -1)])
+            res = indexes.find_one({'security_id': int(idx_list[security])}, sort=[('LTT', -1)])
             if not res: res = self.price(security, True)
         return res
 

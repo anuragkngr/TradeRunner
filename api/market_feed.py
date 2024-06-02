@@ -2,11 +2,12 @@
 # nest_asyncio.apply()
 # import asyncio
 from utils import Utils
-import time
+# import time
 from threading import Thread
 import json, traceback, pymongo, logging, os, threading
 from pathlib import Path
 from datetime import datetime
+from dateutil import parser
 from time import sleep
 idx = ['13', '21', '25', '20', '51', '69']
 from dhanhq import dhanhq, marketfeed
@@ -132,7 +133,7 @@ for i in range(11):
     instruments.append((2, security_id))
     feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
 # instruments = [(0, '13'), (0, '25'), (2, '38730'), (2, '46923')]
-instruments = instruments + [(2, '43889'), (2, '43888'), (2, '37103')]
+instruments = instruments + [(2, '43996'), (2, '37103'), (2, '43692'), (2, '36992')]
 # instruments = [(2, '43889'), (2, '37051')]
 # 37758
 print(len(feed_ids))
@@ -181,26 +182,49 @@ def saveData(message):
             )
     
     db_obj = indexes if message['exchange_segment'] == 0 else options
-        
+
     if message['type'] == 'Quote Data':
+        message['open'] = float(message['open'])
+        message['high'] = float(message['high'])
+        message['low'] = float(message['low'])
+        message['close'] = float(message['close'])
+        message['avg_price'] = float(message['avg_price'])
+        message['LTP'] = float(message['LTP'])
+
         if util.getTime() < conf['start_time']:
             message['LTT'] = util.getDate() + ' ' + conf['start_time'] + ':00'
         elif util.getTime() > conf['exit_time']:
             message['LTT'] = util.getDate() + ' ' + conf['exit_time'] + ':00'
         else: message['LTT'] = util.getDate() + ' ' + message['LTT'][:-3] + ':00'
+
+        message['LTT'] = parser.parse(message['LTT'])
+
         res = db_obj.find_one_and_update(
                 { 'security_id' : message['security_id'], 'LTT' : message['LTT'] },
                 { '$set': message },
-                { 'sort': { '_id' : -1 } },
+                { 'sort': { 'LTT' : -1 } },
                 upsert=True
             )
+        # db_obj.aggregate([
+        #     { '$LTT': { 'date': { '$toDate': '$LTT' } } }, 
+        #     { '$sort': { 'date': -1 } }
+        #     ])
         # print(res)
     else:
         if 'OI' in message : message['oi'] = message['OI']
+
+        if util.getTime() < conf['start_time']:
+            message['LTT'] = util.getDate() + ' ' + conf['start_time'] + ':00'
+        elif util.getTime() > conf['exit_time']:
+            message['LTT'] = util.getDate() + ' ' + conf['exit_time'] + ':00'
+        else: message['LTT'] = util.getDate() + ' ' + util.getTime()[:-3] + ':00'
+
+        message['LTT'] = parser.parse(message['LTT'])
+
         res = db_obj.find_one_and_update(
                 { 'security_id' : message['security_id'] },
                 { '$set': message },
-                { 'sort': { '_id' : -1 } },
+                { 'sort': { 'LTT' : -1 } },
                 upsert=True
             )
 feed = marketfeed.DhanFeed(conf['dhan_id'],

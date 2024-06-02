@@ -46,7 +46,7 @@ class Position:
         self.option_type = pos['drvOptionType'] if 'drvOptionType' in pos else 0
         self.strike_price = pos['drvStrikePrice'] if 'drvStrikePrice' in pos else 0
         if order: return
-        opt = options.find_one({'oi': { '$gt': 0 }, 'security_id': int(self.security_id)}, sort=[('_id', -1)])
+        opt = options.find_one({'oi': { '$gt': 0 }, 'security_id': int(self.security_id)}, sort=[('LTT', -1)])
         # option_live = options.find_one({'security_id': int(self.security_id)}, sort=[('_id', -1)])
 
         self.oi = self.oi_pre = self.total_buy_quantity = self.total_sell_quantity = self.total_buy_quantity_pre = self.total_sell_quantity_pre = 0
@@ -66,7 +66,7 @@ class Position:
         
         res = options.find_one(
                 { 'security_id' : int(self.security_id) },
-                sort=[('_id', -1)]
+                sort=[('LTT', -1)]
             )
         
         self.price = float(res['LTP']) if 'LTP' in res else -1
@@ -91,7 +91,7 @@ class Position:
         self.option_type = pos.option_type if hasattr(pos, 'option_type') else 0
         self.strike_price = pos.strike_price if hasattr(pos, 'strike_price') else 0
 
-        opt = options.find_one({'oi': { '$gt': 0 }, 'security_id': int(self.security_id)}, sort=[('_id', -1)])
+        opt = options.find_one({'oi': { '$gt': 0 }, 'security_id': int(self.security_id)}, sort=[('LTT', -1)])
 
 
         if opt is not None: 
@@ -116,7 +116,7 @@ class Position:
 
         res = options.find_one(
                 { 'security_id' : int(self.security_id) },
-                sort=[('_id', -1)]
+                sort=[('LTT', -1)]
             )
         
         self.price = float(res['LTP']) if 'LTP' in res else -1
