@@ -2,6 +2,7 @@
 from datetime import datetime
 from dateutil import parser
 now = datetime.now()
+from time import sleep
 import ast, traceback, json, pandas as pd, logging, os
 conf = json.load(open("./data/configuration.json"))
 
@@ -26,6 +27,7 @@ except Exception:
     token_df['INDEX'] = [str(scrip).split('-')[0] for scrip in token_df['SEM_TRADING_SYMBOL']]
     token_df = token_df.sort_values(by='SEM_EXPIRY_DATE')
     token_df.to_csv(f"./data/api-scrip-master{'_' + tm}.csv", index=False)
+    # sleep(1)
 
 class Utils:
     def __init__(self):
@@ -114,6 +116,8 @@ class Utils:
         if fmt is None: return datetime.now().strftime("%m-%d-%Y")
         else: return datetime.now().strftime(fmt)
     def getDateExpFrmt(self, dt_str):
+        # print(dt_str)
+        # print(expFmt)
         return parser.parse(dt_str).strftime(expFmt)
     def getTime(self):
         return datetime.now().strftime("%H:%M:%S")

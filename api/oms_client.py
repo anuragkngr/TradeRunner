@@ -160,11 +160,11 @@ if __name__ == "__main__":
 
     if c_buy is not None:
         orders = [ pObj(index, c_buy, 'CE', 'B', lots) ]
-        res = openPositions(orders)
+        # res = openPositions(orders)
 
     if p_buy is not None:
         orders = [ pObj(index, p_buy, 'PE', 'B', lots) ]
-        res = openPositions(orders)
+        # res = openPositions(orders)
 
     if c_sell is not None:
         spot_strike = c_sell + (hedge_strike_gap*slab)

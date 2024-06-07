@@ -1,10 +1,11 @@
 from position import Position
 from utils import Utils
 import traceback, json, logging, pandas_ta as ta, warnings, pandas as pd, pymongo
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, date
 conf = json.load(open("./data/configuration.json"))
 from time import sleep
 from dhanhq import dhanhq
+from dateutil import parser
 client = pymongo.MongoClient(conf['db_url_lcl'])
 dblist = client.list_database_names()
 if "tradestore" in dblist:
@@ -12,12 +13,15 @@ if "tradestore" in dblist:
 mydb = client["tradestore"]
 options = mydb["options"]
 indexes = mydb["indexes"]
+history = mydb["history"]
 oi = mydb["open_interest"]
 
 warnings.filterwarnings('ignore')
-trade_headers=['SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED', 'OI', 'BUY', 'SEL']
+# trade_headers=['SECURITY', 'SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED', 'OI', 'BUY', 'SEL']
+trade_headers=['ID', 'SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L']
 option_headers=['INDEX', 'OPEN', 'LOW', 'STRIKE', 'OPTION', 'OPEN', 'HIGH', 'STRIKE', 'OPTION']
-trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET', 'SWING']
+# trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET', 'SWING']
+trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET']
 idx_list = {'NIFTY': '13', 'BANKNIFTY': '25', 'FINNIFTY': '27', 'INDIA VIX': '21', 'NIFTYMCAP50': '20', 'BANKEX': '69', 'SENSEX': '51'}
 fut_list = {'NIFTY': '46930', 'BANKNIFTY': '46923'}
 util = Utils()
@@ -33,7 +37,7 @@ class OMS():
         self.dhan = dhanhq(conf['dhan_id'], conf['dhan_token'])
 
     def refreshConnection(self, method):
-        sleep(5)
+        # sleep(1)
         flag = True; cnt = 0;
         while flag:
             cnt += 1;
@@ -135,24 +139,29 @@ class OMS():
         except Exception: return None
 
 
-    def positions(self):
-        sleep(1)
+    def positions(self, load=False):
         res = {}; pos = []
         try:
             if conf['mock']: res = json.load(open('./data/positions.json'))
             else : res = self.dhan.get_positions()
-            # res = json.load(open('./data/positions.json'))
+            res = json.load(open('./data/positions.json'))
             logger.info(f"OMS API position response: {json.dumps(res)}")
         except Exception:
             logger.info(f"OMS API  Exception positions response: {traceback.format_exc()}")
             self.refreshConnection('positions')
             # res = self.dhan.get_positions()
+        # if not load:
         order_list = self.dhan.get_order_list()['data']
-
         for po in res['data'] :
             if po["positionType"] not in ['CLOSED']:
-                pos.append(Position(po, orderList=order_list))
+                pos.append(Position(po))
+                # pos.append(Position(po, orderList=order_list))
         return [] if not pos else pos
+        # else:
+        #     for po in res['data'] :
+        #         if po["positionType"] not in ['CLOSED']:
+        #             pos.append(Position(po))
+        #     return [] if not pos else pos
     
     def getFundLimits(self):
         try:
@@ -166,12 +175,12 @@ class OMS():
             # rms = self.dhan.rmsLimit()['data']
         return {} if rms is None else rms
     
-    def getOrderBook(self):
-        if conf['mock']: res = json.load(open('./data/order_book.json'))
-        else : res = self.dhan.get_order_list()
-        # res = json.load(open('./data/order_book.json'))
-        logger.info(f"OMS API getOrderBook response: {json.dumps(res)}")
-        return None if res is None or res['data'] is None or res['data'] == '' else res['data']
+    # def getOrderBook(self):
+    #     if conf['mock']: res = json.load(open('./data/order_book.json'))
+    #     else : res = self.dhan.get_order_list()
+    #     # res = json.load(open('./data/order_book.json'))
+    #     logger.info(f"OMS API getOrderBook response: {json.dumps(res)}")
+    #     return None if res is None or res['data'] is None or res['data'] == '' else res['data']
 
     def updateCostPrice(self, positions):
         # sleep(1)
@@ -267,7 +276,7 @@ class OMS():
         except Exception:
             logger.info(f"Positions API  Exception rmsLimit response: {traceback.format_exc()}")
             self.refreshConnection('spotStrike')
-        spot_price = float(spot_price['LTP']) if 'LTP' in spot_price else -1
+        spot_price = float(spot_price['LTP']) if 'LTP' in spot_price else float(spot_price['close']) if 'close' in spot_price else -1
         strike = round(spot_price / slab) * slab
         return strike
 
@@ -306,21 +315,41 @@ class OMS():
     
     def price_history(self, symbol, isIndex=True):
         try:
-            res = self.dhan.historical_daily_data(
+            _dt = datetime.today().replace(hour=0,minute=0,second=0,microsecond=0)
+
+            res = history.find_one(
+                {'symbol': symbol, 'history_date': {'$lt': _dt}}, 
+                sort=[('history_date', -1)])
+            if res is not None: 
+                return {'open': res['open'], 'high': res['high'], 
+                   'low': res['low'], 'close': res['close']} 
+            else:
+                response = self.dhan.historical_daily_data(
                 symbol=symbol,
                 exchange_segment='IDX_I' if isIndex else "NSE_FNO",
                 instrument_type='INDEX' if isIndex else "OPTIDX",
                 expiry_code=0,
                 from_date=(datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d') ,
                 to_date=datetime.now().strftime('%Y-%m-%d')
-            )
-            if res['status'] == 'failure': return {'open': -1, 'high': -1, 'low': -1, 'close': -1}
-            else: 
-                res = res['data']
-                return {'open': res['open'][-1], 'high': res['high'][-1], 
-                   'low': res['low'][-1], 'close': res['close'][-1]}
+                )
+                
+                if response['status'] == 'failure': return {'open': -1, 'high': -1, 'low': -1, 'close': -1}
+                else: 
+                    response = response['data']
+                    _dt = self.dhan.convert_to_date_time(response['start_Time'][-1]).replace(hour=0,minute=0,second=0,microsecond=0)
+                    res = {}
+                    res['symbol'] = symbol
+                    res['open'] = response['open'][-1]
+                    res['high'] = response['high'][-1]
+                    res['low'] = response['low'][-1]
+                    res['close'] = response['close'][-1]
+                    res['history_date'] = _dt
+                    res['updated_dt'] = datetime.now()
+                    history.insert_one(res)
+            return res
         except Exception:
             logger.info(f"OMS API  Exception price_history response: {traceback.format_exc()}")
+            print(f"OMS API  Exception price_history response: {traceback.format_exc()}")
             return {'open': -1, 'high': -1, 'low': -1, 'close': -1}
         
     def closeAllTrade(self, book):

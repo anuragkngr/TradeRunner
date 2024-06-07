@@ -27,19 +27,27 @@ class Position:
         self.position_type = pos['positionType'] if 'positionType' in pos else 0
         self.exchange_segment = pos['exchangeSegment'] if 'exchangeSegment' in pos else 0
         self.product_type = pos['productType'] if 'productType' in pos else 'MARGIN'
-        self.cost_price = pos['costPrice'] if 'costPrice' in pos else 0
+        self.quantity = pos['netQty'] if 'netQty' in pos else 0
+        # self.cost_price = pos['buyAvg'] if 'buyAvg' in pos else -1
+        # if self.position_type == 'SHORT': self.cost_price = pos['sellAvg'] if 'sellAvg' in pos else -1
 
-        if orderList is not None:
-            for po in orderList:
-                transactionType = 'SHORT' if po['transactionType'] == 'SELL' else 'LONG'
-                if po['securityId'] == self.security_id and self.position_type == transactionType:# and pos.option_type == po['drvOptionType']:
-                    self.cost_price = po['price']
-                    break
+        # if orderList is not None:
+        #     prc=qty=cnt=0
+        #     for po in orderList:
+        #         qty = qty + abs(po['quantity'])
+        #         prc = prc + po['price']
+        #         cnt = cnt + 1
+        #         transactionType = 'SHORT' if po['transactionType'] == 'SELL' else 'LONG'
+        #         if po['securityId'] == self.security_id and self.position_type == transactionType and abs(self.quantity) == qty:
+        #             self.cost_price = prc/cnt
+        #             break
+
+        self.cost_price = pos['costPrice'] if 'costPrice' in pos else -1
+                
         self.buy_avg = pos['buyAvg'] if 'buyAvg' in pos else 0
         self.buy_qty = pos['buyQty'] if 'buyQty' in pos else 0
         self.sell_avg = pos['sellAvg'] if 'sellAvg' in pos else 0
         self.sell_qty = pos['sellQty'] if 'sellQty' in pos else 0
-        self.quantity = pos['netQty'] if 'netQty' in pos else 0
         self.realized = pos['realizedProfit'] if 'realizedProfit' in pos else 0
         self.unrealized = pos['unrealizedProfit'] if 'unrealizedProfit' in pos else 0
         self.expiry_date = pos['drvExpiryDate'] if 'drvExpiryDate' in pos else '-'
@@ -69,8 +77,8 @@ class Position:
                 sort=[('LTT', -1)]
             )
         
-        self.price = float(res['LTP']) if 'LTP' in res else -1
-        self.pnl = self.unrealized if self.price < 0 else -1
+        self.price = float(res['LTP']) if res is not None and 'LTP' in res else -1
+        self.pnl = -1
         if self.price > 0: self.pnl = (self.price - self.cost_price) * abs(self.quantity)
         if self.position_type == 'SHORT': self.pnl = self.pnl*-1
 
@@ -119,8 +127,8 @@ class Position:
                 sort=[('LTT', -1)]
             )
         
-        self.price = float(res['LTP']) if 'LTP' in res else -1
-        self.pnl = self.unrealized if self.price < 0 else -1
+        self.price = float(res['LTP']) if res is not None and 'LTP' in res else -1
+        self.pnl = -1#self.unrealized if self.price > 0 else -1
         if self.price > 0: self.pnl = (self.price - self.cost_price) * abs(self.quantity)
         if self.position_type == 'SHORT': self.pnl = self.pnl*-1
 

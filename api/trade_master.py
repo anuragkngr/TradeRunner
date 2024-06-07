@@ -1,9 +1,13 @@
-import traceback, json, pandas as pd, logging,os
+import traceback, json, pandas as pd, logging,os, pymongo
 conf = json.load(open("./data/configuration.json"))
+# open("./data/pnl.txt", "w").close()
 from datetime import datetime, time
 from time import sleep
 import warnings
 warnings.filterwarnings('ignore')
+client = pymongo.MongoClient(conf['db_url_lcl'])
+mydb = client["tradestore"]
+trades = mydb["trades"]
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 os.makedirs(f"./logs/{tm}", exist_ok=True)
@@ -26,6 +30,8 @@ if __name__ == "__main__":
     try:
         subject = "open-nifty-sic-10".upper()
         subs = subject.split('-') 
+        # open("./data/pnl.txt", "w").close()
+        # trades.delete_many({})
         while True:#util.getTime() >= conf["start_time"] and util.getTime() < conf["end_time"]:
             trade_book.print()
             rms.verify(trade_book)
@@ -34,6 +40,7 @@ if __name__ == "__main__":
                     trade_book.exitTrades()
                 if util.getTime() > conf["final_sl"] and trade_book.finalFlag:
                     trade_book.setFinalRisk()
+            print(datetime.now())
             sleep(1)
             # sleep(conf["refresh_interval"])
     except Exception as e:

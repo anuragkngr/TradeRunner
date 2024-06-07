@@ -15,26 +15,26 @@ class Option:
     def __init__(self, index, feed, strike, option_type='CE'):
 
         self.index = index if index is not None else '--'
-        self.exchange_segment = feed['exchange_segment'] if 'exchange_segment' in feed else -1
-        self.security_id = feed['security_id'] if 'security_id' in feed else -1
+        self.exchange_segment = feed['exchange_segment'] if feed is not None and 'exchange_segment' in feed else -1
+        self.security_id = feed['security_id'] if feed is not None and 'security_id' in feed else -1
         self.strike = strike if strike is not None else -1
-        self.ltt = feed['LTT'] if 'LTT' in feed else parser.parse(util.getDate() + ' ' + util.getTime()[:-3] + ':00')
-        self.open = float(feed["open"]) if "open" in feed else -1
-        self.high = float(feed["high"]) if "high" in feed else -1
-        self.low = float(feed["low"]) if "low" in feed else -1
-        self.close = float(feed["close"]) if "close" in feed else -1
-        self.ltp = float(feed["LTP"]) if "LTP" in feed else -1
-        self.oi = feed["oi"] if "oi" in feed else -1
-        self.volume = feed["volume"] if "volume" in feed else -1
+        self.ltt = feed['LTT'] if feed is not None and 'LTT' in feed else parser.parse(util.getDate() + ' ' + util.getTime()[:-3] + ':00')
+        self.open = float(feed["open"]) if feed is not None and "open" in feed else -1
+        self.high = float(feed["high"]) if feed is not None and "high" in feed else -1
+        self.low = float(feed["low"]) if feed is not None and "low" in feed else -1
+        self.close = float(feed["close"]) if feed is not None and "close" in feed else -1
+        self.ltp = float(feed["LTP"]) if feed is not None and "LTP" in feed else -1
+        self.oi = feed["oi"] if feed is not None and "oi" in feed else -1
+        self.volume = feed["volume"] if feed is not None and "volume" in feed else -1
         self.move = self.close - self.open
         self.movePercent = self.move * 100 / self.close
         self.option_type = option_type
 
-        self.total_buy_quantity = feed['total_buy_quantity'] if 'total_buy_quantity' in feed else 0
-        self.total_sell_quantity = feed['total_sell_quantity'] if 'total_sell_quantity' in feed else 0
-        self.volume = feed['volume'] if 'volume' in feed else 0
-        self.oi = feed['oi'] if 'oi' in feed else 0
-        if self.oi == 0: self.oi = feed['OI'] if 'OI' in feed else 0
+        self.total_buy_quantity = feed['total_buy_quantity'] if feed is not None and 'total_buy_quantity' in feed else 0
+        self.total_sell_quantity = feed['total_sell_quantity'] if feed is not None and 'total_sell_quantity' in feed else 0
+        self.volume = feed['volume'] if feed is not None and 'volume' in feed else 0
+        self.oi = feed['oi'] if feed is not None and 'oi' in feed else 0
+        if self.oi == 0: self.oi = feed['OI'] if feed is not None and 'OI' in feed else 0
 
         self.open_high = False
         self.open_low = False

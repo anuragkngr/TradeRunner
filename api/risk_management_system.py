@@ -43,7 +43,7 @@ class RMS:
             else:
                 logger.info(f"skipping applying adjustment for pos {str(pos)}")    
                 trd.adjustLeg(pos)
-                time.sleep(2)
+                # time.sleep(2)
                 # book.fundUpdate(trd)
     
     def checkTrade(self, trd) -> int:

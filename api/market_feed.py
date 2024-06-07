@@ -2,7 +2,8 @@
 # nest_asyncio.apply()
 # import asyncio
 from utils import Utils
-# import time
+import warnings
+warnings.filterwarnings('ignore')
 from threading import Thread
 import json, traceback, pymongo, logging, os, threading
 from pathlib import Path
@@ -30,7 +31,7 @@ lock = threading.Lock()
 # indexes.drop()
 # options.drop()
 # instruments = [(0, '13'), (0, '21'), (0, '25'), (0, '20'), (0, '51'), (0, '69')]
-instruments = [(0, '13'), (0, '21'), (0, '25')]
+inst = instruments = [(0, '13'), (0, '21'), (0, '25')]
 subscription_code = marketfeed.Quote
 # subscription_code = marketfeed.Ticker
 oms = OMS() 
@@ -133,7 +134,7 @@ for i in range(11):
     instruments.append((2, security_id))
     feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
 # instruments = [(0, '13'), (0, '25'), (2, '38730'), (2, '46923')]
-instruments = instruments + [(2, '43996'), (2, '37103'), (2, '43692'), (2, '36992')]
+instruments = instruments + [(2, '55116'), (2, '43996'), (2, '37103'), (2, '36969')]
 # instruments = [(2, '43889'), (2, '37051')]
 # 37758
 print(len(feed_ids))
@@ -229,7 +230,8 @@ def saveData(message):
             )
 feed = marketfeed.DhanFeed(conf['dhan_id'],
     conf['dhan_token'],
-    instruments,
+    # instruments,
+    inst,
     subscription_code,
     on_connect=on_connect,
     on_message=on_message,

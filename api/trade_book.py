@@ -1,7 +1,7 @@
-import ast, traceback, numpy as np, json, pandas as pd, logging, pymongo
+import ast, traceback, numpy as np, json, pandas as pd, logging, pymongo, time
 conf = json.load(open("./data/configuration.json"))
 from tabulate import tabulate, SEPARATING_LINE
-from datetime import datetime, time
+from datetime import datetime#, time
 from time import sleep
 from index import Index
 from trade import Trade
@@ -47,6 +47,7 @@ class TradeBook:
         self.bank_nifty = Index('BANKNIFTY')
         self.risk = conf["risk"]
         self.reward = conf["reward"]
+        self.reload_start_time_sec = time.time()
 
     def enterTrade(self, trd, fund=None): 
         self.trades.append(trd)
@@ -69,6 +70,8 @@ class TradeBook:
                     for po in pos:
                         if po.security_id == position['security_id']:
                             po.cost_price = position['cost_price']
+                            po.price = position['price']
+                            po.pnl = position['pnl']
                             trd_pos.append(po)
                             if po in posList: posList.remove(po)
                             break
@@ -96,7 +99,7 @@ class TradeBook:
         self.fundUpdate(trd)
         util.deleteTradeStats(trd.trade_id)
         trd.updateTrade()
-        sleep(conf["order_delay"])
+        # sleep(conf["order_delay"])
 
     def clean(self):
         trds = self.trades
@@ -131,13 +134,17 @@ class TradeBook:
         return copy_pos_idx
 
     def updateIndex(self):
-        self.vix = indexes.find_one({'security_id': int(idx_list['INDIA VIX'])})
-        self.nifty = Index('NIFTY')
-        self.bank_nifty = Index('BANKNIFTY')
+        if (time.time() - self.reload_start_time_sec) > conf['reload_start_time_sec']:
+            self.vix = indexes.find_one({'security_id': int(idx_list['INDIA VIX'])})
+            self.nifty = Index('NIFTY')
+            self.bank_nifty = Index('BANKNIFTY')
+            self.reload_start_time_sec = time.time()
 
     def update(self):  # sourcery skip: low-code-quality
-        self.updateIndex()
-        pos = oms.positions()
+        if (time.time() - self.reload_start_time_sec) > conf['reload_start_time_sec']: 
+            self.updateIndex()
+
+        pos = oms.positions(True)
         if len(self.trades) == 0: 
             pos = self.loadTrades(pos)
         # tt = [td.index for td in self.trades if td.status == 'open']
@@ -203,23 +210,23 @@ class TradeBook:
         if self.openTrades > 0:
             data = [
                 {
-                    1: f"{'NIFT (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.close))) + ' (' + str(round(float(self.nifty.move))) + ') [' + str(self.nifty.pcr) + ']'}",
+                    1: f"{'NIFT (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.ltp))) + ' (' + str(round(float(self.nifty.move))) + ') [' + str(self.nifty.pcr) + ']'}",
                     2: f"{'PRE (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.pre_close))) + ' (' + str(round(float(self.nifty.pre_move))) + ')'}",
-                    3: f"{'ATM(P=' + str(round(float(self.nifty.atm_price))) + ', V: ' + str(round(float(self.nifty.vwap))) + ', ' + str(round(float(self.nifty.atm_pcr))) 
-                         + ') EMA: ' + str(round(float(self.nifty.ema_fast - self.nifty.ema_slow)))}",
+                    # 3: f"{'ATM(P=' + str(round(float(self.nifty.atm_price))) + ', V: ' + str(round(float(self.nifty.vwap))) + ', ' + str(round(float(self.nifty.atm_pcr))) 
+                    #      + ') EMA: ' + str(round(float(self.nifty.ema_fast - self.nifty.ema_slow)))}",
                 },
                 {
-                    1: f"{'BANK (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.close))) + ' (' + str(round(float(self.bank_nifty.move))) + ') [' + str(self.bank_nifty.pcr) + ']'}",
+                    1: f"{'BANK (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.ltp))) + ' (' + str(round(float(self.bank_nifty.move))) + ') [' + str(self.bank_nifty.pcr) + ']'}",
                     2: f"{'PRE (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.pre_close))) + ' (' + str(round(float(self.bank_nifty.pre_move))) + ') '}",
-                    3: f"{'ATM(P=' + str(round(float(self.bank_nifty.atm_price))) + ', V: ' + str(round(float(self.bank_nifty.vwap))) + ', ' + str(round(float(self.bank_nifty.atm_pcr))) 
-                         + ') EMA: ' + str(round(float(self.bank_nifty.ema_fast - self.bank_nifty.ema_slow)))}",
+                    # 3: f"{'ATM(P=' + str(round(float(self.bank_nifty.atm_price))) + ', V: ' + str(round(float(self.bank_nifty.vwap))) + ', ' + str(round(float(self.bank_nifty.atm_pcr))) 
+                        #  + ') EMA: ' + str(round(float(self.bank_nifty.ema_fast - self.bank_nifty.ema_slow)))}",
                     # 4: f"{'O=H: (' + str(self.bank_nifty.open_high_list) + '), O=L: (' + str(self.bank_nifty.open_high_list) + ')'}",
                     
                 },
                 {
                     1: f"{'VIX: ' + str(round(float(self.vix['close'] if self.vix is not None else -1), 2)) + ' (' + str(round((float(self.vix['LTP'] if self.vix is not None else -1) - float(self.vix['open'] if self.vix is not None else -1)), 2)) + ')'}",
                     2: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",
-                    3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk)) + '%) - TGT: ' + str(round(self.target))}",
+                    # 3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk)) + '%) - TGT: ' + str(round(self.target))}",
                     # 4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward)) + '%)'}",
                     # 4: f"{'MAX/MIN: (' + str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ')'}",
                 }

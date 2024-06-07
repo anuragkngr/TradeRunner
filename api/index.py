@@ -28,15 +28,16 @@ class Index:
 
         slab = 100 if index == "BANKNIFTY" else 50
         idx = indexes.find_one({'security_id': int(idx_list[index])}, sort=[('LTT', -1)])
+        # print(idx)
         self.open = idx["open"] if idx is not None and "open" in idx else -1
         self.high = idx["high"] if idx is not None and "high" in idx else -1
         self.low = idx["low"] if idx is not None and "low" in idx else -1
         self.ltp = idx["LTP"] if idx is not None and "LTP" in idx else -1
         self.close = idx["close"] if idx is not None and "close" in idx else -1
-        self.move = float(self.close) - float(self.open)
-        self.movePercent = self.move * 100 / float(self.close)
+        self.move = float(self.ltp) - float(self.open)
+        self.movePercent = self.move * 100 / float(self.ltp)
         if index_trade_start is not None: self.open = index_trade_start
-        self.ltt = idx['LTT'] if 'LTT' in idx else parser.parse(util.getDate() + ' ' + util.getTime()[:-3] + ':00')
+        self.ltt = idx['LTT'] if idx is not None and 'LTT' in idx else parser.parse(util.getDate() + ' ' + util.getTime()[:-3] + ':00')
         if self.move < ((-1)*slab): self.trend = 'D'
         elif self.move > slab: self.trend = 'U'
         else: self.trend = 'N'
@@ -82,8 +83,8 @@ class Index:
 
         all_options = bull_otm_options + atm_options + list(reversed(bear_otm_options))
 
-        l1 = [op.strike for op in all_options if op.open_high]
-        l2 = [op.strike for op in all_options if op.open_low]
+        # l1 = [op.strike for op in all_options if op.open_high]
+        # l2 = [op.strike for op in all_options if op.open_low]
 
         oi_call = sum(opt.oi for opt in all_options if hasattr(opt, 'oi') and opt.option_type in ['CALL'])
         oi_put = sum(opt.oi for opt in all_options if hasattr(opt, 'oi') and opt.option_type in ['PUT'])
