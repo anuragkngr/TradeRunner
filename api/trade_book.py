@@ -54,6 +54,11 @@ class TradeBook:
         self.totalTrades += 1
         self.openTrades += 1
         self.fundUpdate(trd, fund)
+        if conf['percent_pnl'] and trd.margin > 0:
+            trd.sl = trd.margin*conf['risk']/100
+            trd.target = trd.margin*conf['reward']/100
+        util.addTradeStats({'index': trd.index, 'trade_id': trd.trade_id, 
+                    'sl': trd.sl, 'target': trd.target, 'margin': trd.margin})
 
     def loadTrades(self, pos): 
         posList=pos.copy()
@@ -134,15 +139,15 @@ class TradeBook:
         return copy_pos_idx
 
     def updateIndex(self):
-        if (time.time() - self.reload_start_time_sec) > conf['reload_start_time_sec']:
+        # if (time.time() - self.reload_start_time_sec) > conf['reload_start_time_sec']:
             self.vix = indexes.find_one({'security_id': int(idx_list['INDIA VIX'])})
             self.nifty = Index('NIFTY')
             self.bank_nifty = Index('BANKNIFTY')
             self.reload_start_time_sec = time.time()
 
     def update(self):  # sourcery skip: low-code-quality
-        if (time.time() - self.reload_start_time_sec) > conf['reload_start_time_sec']: 
-            self.updateIndex()
+        # if (time.time() - self.reload_start_time_sec) > conf['reload_start_time_sec']: 
+        self.updateIndex()
 
         pos = oms.positions(True)
         if len(self.trades) == 0: 

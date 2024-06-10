@@ -30,9 +30,9 @@ if __name__ == "__main__":
     try:
         subject = "open-nifty-sic-10".upper()
         subs = subject.split('-') 
-        # open("./data/pnl.txt", "w").close()
-        # trades.delete_many({})
-        while True:#util.getTime() >= conf["start_time"] and util.getTime() < conf["end_time"]:
+        open("./data/pnl.txt", "w").close()
+        trades.delete_many({})
+        while util.getTime() >= conf["start_time"] and util.getTime() < conf["end_time"]:
             trade_book.print()
             rms.verify(trade_book)
             if conf["intraday"] is True:
@@ -40,7 +40,7 @@ if __name__ == "__main__":
                     trade_book.exitTrades()
                 if util.getTime() > conf["final_sl"] and trade_book.finalFlag:
                     trade_book.setFinalRisk()
-            print(datetime.now())
+            # print(datetime.now())
             sleep(1)
             # sleep(conf["refresh_interval"])
     except Exception as e:

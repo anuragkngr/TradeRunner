@@ -55,10 +55,10 @@ class Trade:
         else:
             self.strategy = 'Selling (b=' + str(buying_count) + ', s=' + str(selling_count) + ')'
 
-        self.updated_at = self.created_at = datetime.now()
-        self.updateTrade()
-        util.addTradeStats({'index': self.index, 'trade_id': self.trade_id, 
-                    'sl': self.sl, 'target': self.target})
+        # self.updated_at = self.created_at = datetime.now()
+        # self.updateTrade()
+        # util.addTradeStats({'index': self.index, 'trade_id': self.trade_id, 
+        #             'sl': self.sl, 'target': self.target, 'margin': self.margin})
 
     # def updateIndex(self): 
     #     price = oms.price_DB(self.index)
@@ -153,9 +153,9 @@ class Trade:
             "SECURITY": po.security_id,
             "SYMBOL": po.symbol,
             "QUANTITY": po.quantity,
+            "P&L": po.pnl,
             "COST": po.cost_price,
             "PRICE": po.price,
-            "P&L": po.pnl,
             # "REALISED": po.realized,
             # "UNREALIZED": po.unrealized,
             # "OI": str(po.oi) + ' (' + str((po.oi - po.oi_pre) if po.oi_pre > 0 else 0) + ')',
@@ -198,31 +198,13 @@ class Trade:
         #     sl = self.pnl - abs(self.pnl*0.75)
         #     if sl > self.sl: self.sl = sl
         if self.pnl > 0:
-            # if self.pnl > 500 and self.sl < 200: self.sl = 200
-            # if self.pnl > 1000 and self.sl < 800: self.sl = 800
-            # if self.pnl > 1500 and self.sl < 1000: self.sl = 1000
-            # if self.pnl > 2000 and self.sl < 1500: self.sl = 1500
-            # if self.pnl > 3000 and self.sl < 2500: self.sl = 2500
-            # if self.pnl > 3500 and self.sl < 3000: self.sl = 3000
-            # if self.pnl > 4000 and self.sl < 3500: self.sl = 3500
-            # if self.pnl > 4500 and self.sl < 4000: self.sl = 4000
-            # if self.pnl > 5000 and self.sl < 4000: self.sl = 4000
-            # if self.pnl > 6000 and self.sl < 5000: self.sl = 5000
-            # if self.pnl > 7000 and self.sl < 6000: self.sl = 6000
-            # if self.pnl > 8000 and self.sl < 8000: self.sl = 7000
-            # if self.pnl > 22000 and self.sl < 20000: self.sl = 20000
-            # if self.pnl > 25000 and self.sl < 20000: self.sl = 20000
-            # if self.pnl > 30000 and self.sl < 25000: self.sl = 25000
-            # if self.pnl > 35000 and self.sl < 30000: self.sl = 30000
-            # if self.pnl > 40000 and self.sl < 35000: self.sl = 35000
-            # if self.pnl > self.target:
-                sl = float(self.pnl) - 500#float(self.pnl)*0.2
-                logger.info(f"Trade, update Trade SL: {self.sl}, New SL: {sl}, self.pnl: {self.pnl}")
+            sl = float(self.pnl) - 500#float(self.pnl)*0.2
+            if sl > self.sl > 0: self.sl = sl
+            if self.pnl > self.target:
+                sl = self.pnl#float(self.pnl)*0.2
                 if sl > self.sl > 0: self.sl = sl
         # if mins > conf['timer4']:
         #     self.sl = self.pnl
-
-
 
 #//TODO: this function   should  probably       
 if __name__ == "__main__":

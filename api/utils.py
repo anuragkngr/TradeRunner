@@ -36,7 +36,7 @@ class Utils:
     def addTradeStats(self, trd): 
         trd_data = self.getTradeDetails(trd['trade_id'])
         dict_trd = {'index': trd['index'], 'trade_id': trd['trade_id'], 
-                        'sl': trd['sl'], 'target': trd['target']}
+                        'sl': trd['sl'], 'target': trd['target'], 'margin': trd['margin']}
         if trd_data is None:
             
             self.updateTradeDetails(dict_trd, act='add')

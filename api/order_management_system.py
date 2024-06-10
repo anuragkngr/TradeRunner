@@ -18,7 +18,7 @@ oi = mydb["open_interest"]
 
 warnings.filterwarnings('ignore')
 # trade_headers=['SECURITY', 'SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L', 'REALIZED', 'UNREALIZED', 'OI', 'BUY', 'SEL']
-trade_headers=['ID', 'SYMBOL', 'QUANTITY', 'COST', 'PRICE', 'P&L']
+trade_headers=['ID', 'SYMBOL', 'QUANTITY', 'P&L', 'COST', 'PRICE']
 option_headers=['INDEX', 'OPEN', 'LOW', 'STRIKE', 'OPTION', 'OPEN', 'HIGH', 'STRIKE', 'OPTION']
 # trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET', 'SWING']
 trade_columns=['STRATEGY', 'P&L', 'SL', 'TARGET']
@@ -144,7 +144,7 @@ class OMS():
         try:
             if conf['mock']: res = json.load(open('./data/positions.json'))
             else : res = self.dhan.get_positions()
-            res = json.load(open('./data/positions.json'))
+            # res = json.load(open('./data/positions.json'))
             logger.info(f"OMS API position response: {json.dumps(res)}")
         except Exception:
             logger.info(f"OMS API  Exception positions response: {traceback.format_exc()}")

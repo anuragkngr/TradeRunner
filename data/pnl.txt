@@ -1,1 +1,1 @@
-[{'index': 'NIFTY', 'trade_id': '1717747659', 'sl': -51000, 'target': 51000}, {'index': 'NIFTY', 'trade_id': '1717747725', 'sl': -51000, 'target': 51000}, {'index': 'NIFTY', 'trade_id': '1717754572', 'sl': -51000, 'target': 51000}]
+[{'index': 'NIFTY', 'trade_id': '1718010061', 'sl': -882.855, 'target': 882.855, 'margin': 58857.0}]

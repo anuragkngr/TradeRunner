@@ -50,16 +50,11 @@ class RMS:
         ####### RMS #######
         logger.info("Verifying SL check")
         # if (trd.pnl < trd.sl or trd.pnlPercent < trd.risk) and trd.pnl > 0:
-        if (trd.pnl < trd.sl) and trd.pnl > 0:
-            return 3 #Profit book
-        if trd.pnl < trd.sl:
-            return 1 #SL hit 
-        if trd.pnl > trd.target:
-            trd.sl = trd.pnl - (trd.pnl*0.20)
-            trd.target = trd.pnl + (trd.pnl*0.20)
-            trd.risk = trd.reward - (trd.reward*0.20)
-            trd.reward = trd.reward + (trd.reward*0.20)
-            return 3
+        if (trd.pnl < trd.sl) and trd.pnl > 0: return 3
+             #Profit book
+        if trd.pnl < trd.sl: return 1
+             #SL hit 
+        if trd.pnl > trd.target: return 4
             # Profit continue
         else: return 4 # continue 
     
