@@ -239,7 +239,7 @@ class OMS():
             if not order_online: res = False
             else: res = self.placeOrder(position, transaction_type)
             # print('sample request: ', position)
-            # sleep(1)
+            # sleep(0.15)
         except Exception:
             try:
                 self.refreshConnection('execOrder')

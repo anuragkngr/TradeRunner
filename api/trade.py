@@ -173,12 +173,13 @@ class Trade:
         resp['positions'] = pos
         return resp
 
-    def update(self, positions):#, priceUpdateFlag=False
+    def update(self, positions, finalFlag):
         set_pnl = util.getTradeDetails(self.trade_id)
         if set_pnl is not None:
             if self.sl < set_pnl['sl']:  self.sl = set_pnl['sl']
             if self.target > set_pnl['target']: self.target = set_pnl['target']
-            
+            self.risk = (100*abs(self.sl))/self.margin
+            self.reward = (100*abs(self.target))/self.margin
         # pnl = 0.0
         for pos in self.positions:
             for po in positions:
@@ -192,21 +193,17 @@ class Trade:
         # self.updateIndex()
         # util.updateTradeStats(self)
         self.updateTrade()
+        # rnr = conf['rnr_retio'].split('-')
+        sl = self.sl
+        if not finalFlag:
+            if self.pnl > 500 and self.margin > 0:
+                sl = -(self.margin*self.risk)/(100*2)
+            # elif self.pnl > self.target/2:
+            #     sl = self.pnl/2
+            elif self.pnl > self.target: 
+                sl = self.pnl - 500
+            if sl > self.sl: self.sl = sl
 
-        # mins = int((datetime.now() - datetime.fromtimestamp(self.start)).total_seconds()/60)
-        # if mins > conf['timer1']:
-        #     sl = self.pnl - abs(self.pnl*0.75)
-        #     if sl > self.sl: self.sl = sl
-        if self.pnl > 0:
-            sl = float(self.pnl) - 500#float(self.pnl)*0.2
-            if sl > self.sl > 0: self.sl = sl
-            if self.pnl > self.target:
-                sl = self.pnl#float(self.pnl)*0.2
-                if sl > self.sl > 0: self.sl = sl
-        # if mins > conf['timer4']:
-        #     self.sl = self.pnl
-
-#//TODO: this function   should  probably       
 if __name__ == "__main__":
     # for po in pos: print(po)
     # "43887", "43927"

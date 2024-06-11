@@ -42,6 +42,9 @@ class Option:
         if round(float(self.open)) == round(float(self.low)): self.open_low = True
         if round(float(self.open)) == round(float(self.high)): self.open_high = True
 
+        # if round(float(self.open)) == round(float(self.low) and float(self.ltp)) >= round(float(self.high)): self.open_low = True
+        # if round(float(self.open)) == round(float(self.high) and float(self.ltp)) <= round(float(self.low)): self.open_high = True
+
     def to_dict(self, hl=None):
         if self.open_high:#hl is not None and hl=='high':# 
             return {'open(H)': self.open, 'high(H)': self.high, 'low(H)': self.low, 'LTP(H)': self.ltp,

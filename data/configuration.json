@@ -24,6 +24,7 @@
   "order_delay": 0.2,
   "fund_limit": 70.0,
   "risk": -1.5,
+  "rnr_retio": "1.5-1.5",
   "reward": 1.5,
   "percent_pnl": true,
   "step": 0.2,

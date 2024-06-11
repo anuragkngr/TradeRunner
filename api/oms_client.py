@@ -129,7 +129,7 @@ if __name__ == "__main__":
     # idx = indexes.find_one({'security_id': int(idx_list[index])}, sort=[('LTT', -1)])
     spot = oms.spotStrike(index)
 
-    slab = 50 if index == 'NIFTY' else 100; lots = 4; hedge_strike_gap=20
+    slab = 50 if index == 'NIFTY' else 100; lots = 4; hedge_strike_gap=10
     stb_str = slab*10 if index == 'NIFTY' else slab*10
    
     # c_sell = p_sell = c_buy = p_buy = None
@@ -180,7 +180,7 @@ if __name__ == "__main__":
 
         orders = [ pObj(index, spot_strike, 'PE', 'B', lots),
                   pObj(index, p_sell, 'PE', 'S', lots) ]
-        res = openPositions(orders)                
+        # res = openPositions(orders)                
 
 
 

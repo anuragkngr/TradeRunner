@@ -203,10 +203,12 @@ class Index:
     
 if __name__ == "__main__": 
     idx = Index('NIFTY')
-    # idx.print()
+    idx.print()
 
-    idx = Index('BANKNIFTY')
+    # idx = Index('BANKNIFTY')
     # idx.print()
+    
+# {$expr:{$eq:['$open', '$low']}}
 
     exit(0)
     # print(idx)

@@ -92,7 +92,8 @@ class TradeBook:
         if self.finalFlag is False:
             for trd in self.trades:
                 if trd.status in ["open"]:
-                    trd.sl = float(trd.pnl) - 100.00
+                    if float(trd.pnl) > 100: trd.sl = float(trd.pnl) - 100.00
+                    else : trd.sl = float(trd.pnl)
                     # trd.step = self.finalRisk
             self.finalFlag = True
 
@@ -104,7 +105,12 @@ class TradeBook:
         self.fundUpdate(trd)
         util.deleteTradeStats(trd.trade_id)
         trd.updateTrade()
-        # sleep(conf["order_delay"])
+
+    def exitTrades(self):
+        for trd in self.trades:
+            if trd.status == 'open': 
+                oms.closeTrade(trd)
+                self.exitTrade(trd)
 
     def clean(self):
         trds = self.trades
@@ -157,7 +163,7 @@ class TradeBook:
         if idx: 
             for idx in idx: self.validateTrade(idx, pos.copy())
         for trd in self.trades: 
-            trd.update(pos)
+            trd.update(pos, self.finalFlag)
         self.pnl = sum(trd.pnl for trd in self.trades if trd.status in ["open"])
         self.sl = sum(trd.sl for trd in self.trades if trd.status in ["open"])
         self.target = sum(float(trd.target) for trd in self.trades if trd.status in ["open"])
@@ -212,34 +218,34 @@ class TradeBook:
         self.update()
         for _ in range(4): print()
         # self.printTrades()
-        if self.openTrades > 0:
-            data = [
-                {
-                    1: f"{'NIFT (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.ltp))) + ' (' + str(round(float(self.nifty.move))) + ') [' + str(self.nifty.pcr) + ']'}",
-                    2: f"{'PRE (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.pre_close))) + ' (' + str(round(float(self.nifty.pre_move))) + ')'}",
-                    # 3: f"{'ATM(P=' + str(round(float(self.nifty.atm_price))) + ', V: ' + str(round(float(self.nifty.vwap))) + ', ' + str(round(float(self.nifty.atm_pcr))) 
-                    #      + ') EMA: ' + str(round(float(self.nifty.ema_fast - self.nifty.ema_slow)))}",
-                },
-                {
-                    1: f"{'BANK (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.ltp))) + ' (' + str(round(float(self.bank_nifty.move))) + ') [' + str(self.bank_nifty.pcr) + ']'}",
-                    2: f"{'PRE (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.pre_close))) + ' (' + str(round(float(self.bank_nifty.pre_move))) + ') '}",
-                    # 3: f"{'ATM(P=' + str(round(float(self.bank_nifty.atm_price))) + ', V: ' + str(round(float(self.bank_nifty.vwap))) + ', ' + str(round(float(self.bank_nifty.atm_pcr))) 
-                        #  + ') EMA: ' + str(round(float(self.bank_nifty.ema_fast - self.bank_nifty.ema_slow)))}",
-                    # 4: f"{'O=H: (' + str(self.bank_nifty.open_high_list) + '), O=L: (' + str(self.bank_nifty.open_high_list) + ')'}",
-                    
-                },
-                {
-                    1: f"{'VIX: ' + str(round(float(self.vix['close'] if self.vix is not None else -1), 2)) + ' (' + str(round((float(self.vix['LTP'] if self.vix is not None else -1) - float(self.vix['open'] if self.vix is not None else -1)), 2)) + ')'}",
-                    2: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",
-                    # 3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk)) + '%) - TGT: ' + str(round(self.target))}",
-                    # 4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward)) + '%)'}",
-                    # 4: f"{'MAX/MIN: (' + str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ')'}",
-                }
-            ]
-            df = pd.DataFrame(data)
-            dframe = tabulate(df.values.tolist(), tablefmt="mixed_grid", floatfmt=".2f")
-            print(dframe)
-            self.printTrades()
+        data = [
+            {
+                1: f"{'NIFT (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.ltp))) + ' (' + str(round(float(self.nifty.move))) + ') [' + str(self.nifty.pcr) + ']'}",
+                2: f"{'PRE (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.pre_close))) + ' (' + str(round(float(self.nifty.pre_move))) + ')'}",
+                # 3: f"{'ATM(P=' + str(round(float(self.nifty.atm_price))) + ', V: ' + str(round(float(self.nifty.vwap))) + ', ' + str(round(float(self.nifty.atm_pcr))) 
+                #      + ') EMA: ' + str(round(float(self.nifty.ema_fast - self.nifty.ema_slow)))}",
+            },
+            {
+                1: f"{'BANK (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.ltp))) + ' (' + str(round(float(self.bank_nifty.move))) + ') [' + str(self.bank_nifty.pcr) + ']'}",
+                2: f"{'PRE (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.pre_close))) + ' (' + str(round(float(self.bank_nifty.pre_move))) + ') '}",
+                # 3: f"{'ATM(P=' + str(round(float(self.bank_nifty.atm_price))) + ', V: ' + str(round(float(self.bank_nifty.vwap))) + ', ' + str(round(float(self.bank_nifty.atm_pcr))) 
+                    #  + ') EMA: ' + str(round(float(self.bank_nifty.ema_fast - self.bank_nifty.ema_slow)))}",
+                # 4: f"{'O=H: (' + str(self.bank_nifty.open_high_list) + '), O=L: (' + str(self.bank_nifty.open_high_list) + ')'}",
+                
+            },
+            {
+                1: f"{'VIX: ' + str(round(float(self.vix['close'] if self.vix is not None else -1), 2)) + ' (' + str(round((float(self.vix['LTP'] if self.vix is not None else -1) - float(self.vix['open'] if self.vix is not None else -1)), 2)) + ')'}",
+                2: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",
+                # 3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk)) + '%) - TGT: ' + str(round(self.target))}",
+                # 4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward)) + '%)'}",
+                # 4: f"{'MAX/MIN: (' + str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ')'}",
+            }
+        ]
+        df = pd.DataFrame(data)
+        dframe = tabulate(df.values.tolist(), tablefmt="mixed_grid", floatfmt=".2f")
+        print(dframe)
+    
+        if self.openTrades > 0: self.printTrades()
 
             # df = pd.concat([self.nifty.print(), self.bank_nifty.print()])
             # dframe = tabulate(df.values.tolist(), option_headers, tablefmt="simple_outline", floatfmt=".2f")
