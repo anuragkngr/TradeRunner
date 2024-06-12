@@ -41,8 +41,10 @@ def positions():
         return [] if not pos else pos
 
 def placeOrder(position, transaction_type) -> bool:
-    logger.info(position.to_dict())
-    # print(f" {transaction_type}, position: {position.to_dict()}")
+    logger.info(f"OMS Client: placeOrder Starting...")
+    print(f"OMS Client: placeOrder Starting...")
+    logger.info(f"OMS API Client: placeOrder request:\n{json.dumps(position.to_dict_order(), indent=4)}")
+    print(f"OMS API Client: placeOrder position:\n{json.dumps(position.to_dict_order(), indent=4)}")
     try:
         res = dhan.place_order(
         security_id = str(position.security_id), 
@@ -53,23 +55,31 @@ def placeOrder(position, transaction_type) -> bool:
         product_type = position.product_type,
         price = 0
         )
-        logger.info(f"OMS API Client: placeOrder response: {str(res)}")
+        logger.info(f"OMS API Client: placeOrder response: \n{json.dumps(res, indent=4)}")
+        print(f"OMS API Client: placeOrder response: \n{json.dumps(res, indent=4)}")
         # print(f"OMS API Client: execOrder response: {str(res)}")
         # sleep(0.2)
-        return res
+        logger.info(f"OMS Client: placeOrder Completed...")
+        print(f"OMS Client: placeOrder Completed...")
+        return res if res['status'] != 'failure' else None
     except Exception:
         logger.info(f"OMS Client: Exception placeOrder response: {traceback.format_exc()}")
         print(f"OMS Client: Exception placeOrder response: {traceback.format_exc()}")
-        return False
-            
+        return None
+
 def execOrder(position, transaction_type) -> bool:
+    logger.info(f"OMS Client: execOrder Starting...")
+    print(f"OMS Client: execOrder Starting...")
     try:
-        res = 'OMS client: Order offline'
+        print(f'{transaction_type}: [{position.index}-{position.strike_price}-{position.option_type}-{position.quantity}]')
+        res = 'OMS Client: execOrder Order offline'
         if order_flag: res = placeOrder(position, transaction_type)
-        print(f'{transaction_type}: [{position.index}-{position.strike_price}-{position.option_type}-{position.quantity}] \n {res}')
+        print(f'OMS Client: execOrder response = {res}')
     except Exception:
         logger.info(f"OMS Client: Exception execOrder response: {traceback.format_exc()}")
         print(f"OMS Client: Exception execOrder response: {traceback.format_exc()}")
+    logger.info(f"OMS Client: execOrder Completed...")
+    print(f"OMS Client: execOrder Completed...")
     return res
 
 def closeAllPositions(index=None):
@@ -79,7 +89,7 @@ def closeAllPositions(index=None):
     pos = [po for po in pos if index is None or po.index == index]
     closePositions(pos)
     logger.info(f"OMS Client: CloseAllPositions Completed...")
-    print(f"\nOMS Client: CloseAllPositions Completed...")
+    print(f"OMS Client: CloseAllPositions Completed...")
 
 def closePositions(positions):
     logger.info(f"OMS Client: ClosePositions Starting...")
@@ -92,12 +102,16 @@ def closePositions(positions):
             logger.info(f"OMS Client: ClosePositions ex {traceback.format_exc()}")
             print(f"OMS Client: ClosePositions ex {traceback.format_exc()}")
     logger.info(f"OMS Client: ClosePositions Completed...")
-    print(f"\nOMS Client: ClosePositions Completed...")
+    print(f"OMS Client: ClosePositions Completed...")
     sleep(.2)
 
 def openPositions(positions):
     logger.info(f"OMS Client: openPositions Starting...")
     print(f"OMS Client: openPositions Starting...")
+    # pos = [po.to_dict() for po in positions]
+    pos_print = [po.to_dict_order() for po in positions]
+    logger.info(f"OMS Client: openPositions positions=\n{json.dumps(pos_print, indent=4)}")
+    print(f"OMS Client: openPositions positions=\n{json.dumps(pos_print, indent=4)}")
     for po in positions:
         try:
             security_id = util.securityId(po.index, int(po.strike_price), po.option_type, 1)
@@ -105,11 +119,15 @@ def openPositions(positions):
             po.symbol = security_id['symbol']
             transaction_type = 'SELL' if po.position_type == 'SHORT' else 'BUY'
             res = execOrder(po, transaction_type)
+            if order_flag and res is None:
+                logger.info(f"OMS Client: openPositions execOrder failed. Stop the execution")
+                print(f"\nOMS Client: openPositions execOrder failed. Stop the execution")
+
         except Exception:
             logger.info(f"OMS Client: OpenPositions ex {traceback.format_exc()}")
             print(f"OMS Client: OpenPositions ex {traceback.format_exc()}")
     logger.info(f"OMS Client: openPositions Completed...")
-    print(f"\nOMS Client: openPositions Completed...")
+    print(f"OMS Client: openPositions Completed...")
     # sleep(10)
 
 def pObj(index, strike, option, position, lots):
@@ -121,10 +139,7 @@ def pObj(index, strike, option, position, lots):
     pos = Position(req, True)
     return pos
 
-
-    
 if __name__ == "__main__": 
-    
     # index = 'NIFTY'
     index = 'BANKNIFTY'
     # idx = indexes.find_one({'security_id': int(idx_list[index])}, sort=[('LTT', -1)])
@@ -133,7 +148,6 @@ if __name__ == "__main__":
     slab = 50 if index == 'NIFTY' else 100
     lots = 4; hedge_strike_gap=4
     stb_str = slab*2 if index == 'NIFTY' else slab*5
-   
     # c_sell = p_sell = c_buy = p_buy = None
     #call duwn, sell CALL
     c_sell = open_high_low.find_one({'index': index, 'open_high': True, 'option_type': 'CALL', 'strike': {'$lte': spot}}, sort=[('strike', -1)])

@@ -135,6 +135,12 @@ class Position:
     def to_dict(self):
         return self.__dict__
         # return json.dumps(self.__dict__)
+
+    def to_dict_order(self):
+        res = {'index': self.index, 'symbol': self.symbol, 'security_id': 
+                    self.security_id, 'position_type': self.position_type, 'quantity': 
+                    self.quantity, 'strike_price': self.strike_price, 'option_type': self.option_type}
+        return res
     
     def get(self, key):
         return self.__dict__[key]

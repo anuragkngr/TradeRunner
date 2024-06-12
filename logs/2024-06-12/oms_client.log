@@ -1,10 +1,109 @@
-2024-06-12 19:38:39,140 - INFO - OMS Client: openPositions Starting...
-2024-06-12 19:38:39,147 - INFO - {'index': 'BANKNIFTY', 'symbol': 'BANKNIFTY 12 JUN 48900 CALL', 'security_id': '36692', 'position_type': 'LONG', 'exchange_segment': 0, 'product_type': 'MARGIN', 'quantity': '120', 'cost_price': -1, 'buy_avg': 0, 'buy_qty': 0, 'sell_avg': 0, 'sell_qty': 0, 'realized': 0, 'unrealized': 0, 'expiry_date': '-', 'option_type': 'CE', 'strike_price': 48900}
-2024-06-12 19:38:39,921 - INFO - OMS API Client: placeOrder response: {'status': 'failure', 'remarks': {'error_code': 'RS-9005', 'message': 'Market is Closed! Want to place an offline order?'}, 'data': ''}
-2024-06-12 19:38:39,925 - INFO - OMS Client: openPositions Completed...
-2024-06-12 19:38:43,927 - INFO - OMS Client: openPositions Starting...
-2024-06-12 19:38:43,932 - INFO - {'index': 'BANKNIFTY', 'symbol': 'BANKNIFTY 12 JUN 50500 PUT', 'security_id': '37092', 'position_type': 'LONG', 'exchange_segment': 0, 'product_type': 'MARGIN', 'quantity': '60', 'cost_price': -1, 'buy_avg': 0, 'buy_qty': 0, 'sell_avg': 0, 'sell_qty': 0, 'realized': 0, 'unrealized': 0, 'expiry_date': '-', 'option_type': 'PE', 'strike_price': 50500}
-2024-06-12 19:38:43,974 - INFO - OMS API Client: placeOrder response: {'status': 'failure', 'remarks': {'error_code': 'RS-9005', 'message': 'Market is Closed! Want to place an offline order?'}, 'data': ''}
-2024-06-12 19:38:43,979 - INFO - {'index': 'BANKNIFTY', 'symbol': 'BANKNIFTY 12 JUN 50900 PUT', 'security_id': '37209', 'position_type': 'SHORT', 'exchange_segment': 0, 'product_type': 'MARGIN', 'quantity': '60', 'cost_price': -1, 'buy_avg': 0, 'buy_qty': 0, 'sell_avg': 0, 'sell_qty': 0, 'realized': 0, 'unrealized': 0, 'expiry_date': '-', 'option_type': 'PE', 'strike_price': 50900}
-2024-06-12 19:38:44,033 - INFO - OMS API Client: placeOrder response: {'status': 'failure', 'remarks': {'error_code': 'RS-9005', 'message': 'Market is Closed! Want to place an offline order?'}, 'data': ''}
-2024-06-12 19:38:44,033 - INFO - OMS Client: openPositions Completed...
+2024-06-12 21:14:29,073 - INFO - OMS Client: openPositions Starting...
+2024-06-12 21:14:29,074 - INFO - OMS Client: openPositions positions=
+[
+    {
+        "index": "BANKNIFTY",
+        "symbol": 0,
+        "security_id": 0,
+        "position_type": "LONG",
+        "quantity": "120",
+        "strike_price": 48900,
+        "option_type": "CE"
+    }
+]
+2024-06-12 21:14:29,085 - INFO - OMS Client: execOrder Starting...
+2024-06-12 21:14:29,086 - INFO - OMS Client: placeOrder Starting...
+2024-06-12 21:14:29,087 - INFO - OMS API Client: placeOrder request:
+{
+    "index": "BANKNIFTY",
+    "symbol": "BANKNIFTY 12 JUN 48900 CALL",
+    "security_id": "36692",
+    "position_type": "LONG",
+    "quantity": "120",
+    "strike_price": 48900,
+    "option_type": "CE"
+}
+2024-06-12 21:14:30,687 - INFO - OMS API Client: placeOrder response: 
+{
+    "status": "failure",
+    "remarks": {
+        "error_code": "RS-9005",
+        "message": "Market is Closed! Want to place an offline order?"
+    },
+    "data": ""
+}
+2024-06-12 21:14:30,690 - INFO - OMS Client: placeOrder Completed...
+2024-06-12 21:14:30,691 - INFO - OMS Client: execOrder Completed...
+2024-06-12 21:14:30,691 - INFO - OMS Client: openPositions execOrder failed. Stop the execution
+2024-06-12 21:14:30,691 - INFO - OMS Client: openPositions Completed...
+2024-06-12 21:14:34,693 - INFO - OMS Client: openPositions Starting...
+2024-06-12 21:14:34,695 - INFO - OMS Client: openPositions positions=
+[
+    {
+        "index": "BANKNIFTY",
+        "symbol": 0,
+        "security_id": 0,
+        "position_type": "LONG",
+        "quantity": "60",
+        "strike_price": 50500,
+        "option_type": "PE"
+    },
+    {
+        "index": "BANKNIFTY",
+        "symbol": 0,
+        "security_id": 0,
+        "position_type": "SHORT",
+        "quantity": "60",
+        "strike_price": 50900,
+        "option_type": "PE"
+    }
+]
+2024-06-12 21:14:34,718 - INFO - OMS Client: execOrder Starting...
+2024-06-12 21:14:34,719 - INFO - OMS Client: placeOrder Starting...
+2024-06-12 21:14:34,720 - INFO - OMS API Client: placeOrder request:
+{
+    "index": "BANKNIFTY",
+    "symbol": "BANKNIFTY 12 JUN 50500 PUT",
+    "security_id": "37092",
+    "position_type": "LONG",
+    "quantity": "60",
+    "strike_price": 50500,
+    "option_type": "PE"
+}
+2024-06-12 21:14:34,768 - INFO - OMS API Client: placeOrder response: 
+{
+    "status": "failure",
+    "remarks": {
+        "error_code": "RS-9005",
+        "message": "Market is Closed! Want to place an offline order?"
+    },
+    "data": ""
+}
+2024-06-12 21:14:34,772 - INFO - OMS Client: placeOrder Completed...
+2024-06-12 21:14:34,772 - INFO - OMS Client: execOrder Completed...
+2024-06-12 21:14:34,773 - INFO - OMS Client: openPositions execOrder failed. Stop the execution
+2024-06-12 21:14:34,777 - INFO - OMS Client: execOrder Starting...
+2024-06-12 21:14:34,778 - INFO - OMS Client: placeOrder Starting...
+2024-06-12 21:14:34,779 - INFO - OMS API Client: placeOrder request:
+{
+    "index": "BANKNIFTY",
+    "symbol": "BANKNIFTY 12 JUN 50900 PUT",
+    "security_id": "37209",
+    "position_type": "SHORT",
+    "quantity": "60",
+    "strike_price": 50900,
+    "option_type": "PE"
+}
+2024-06-12 21:14:34,852 - INFO - OMS API Client: placeOrder response: 
+{
+    "status": "failure",
+    "remarks": {
+        "error_code": "RS-9005",
+        "message": "Market is Closed! Want to place an offline order?"
+    },
+    "data": ""
+}
+2024-06-12 21:14:34,855 - INFO - OMS Client: placeOrder Completed...
+2024-06-12 21:14:34,855 - INFO - OMS Client: execOrder Completed...
+2024-06-12 21:14:34,857 - INFO - OMS Client: openPositions execOrder failed. Stop the execution
+2024-06-12 21:14:34,858 - INFO - OMS Client: openPositions Completed...
