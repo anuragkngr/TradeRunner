@@ -55,42 +55,41 @@ class OMS():
     def getIndicators(self, index, spot):
         try:
             atm_ce = util.securityId(index, spot[0], 'CE')
-            otm_ce = util.securityId(index, spot[1], 'CE')
-            itm_ce = util.securityId(index, spot[2], 'CE')
+            atm_ce = self.price_DB(atm_ce['s_id'])
+            atm_ce = (float(atm_ce['high']) + float(atm_ce['low']) + float(atm_ce['LTP']))/3
 
-            atm_ce = self.price(atm_ce['s_id'], False, True)
-            otm_ce = self.price(otm_ce['s_id'], False, True)
-            itm_ce = self.price(itm_ce['s_id'], False, True)
+            otm_ce = util.securityId(index, spot[1], 'CE')
+            otm_ce = self.price_DB(otm_ce['s_id'])
+            otm_ce = (float(otm_ce['high']) + float(otm_ce['low']) + float(otm_ce['LTP']))/3
+
+            itm_ce = util.securityId(index, spot[2], 'CE')
+            itm_ce = self.price_DB(itm_ce['s_id'])
+            itm_ce = (float(itm_ce['high']) + float(itm_ce['low']) + float(itm_ce['LTP']))/3
 
             atm_pe = util.securityId(index, spot[0], 'PE')
-            otm_pe = util.securityId(index, spot[1], 'PE')
-            itm_pe = util.securityId(index, spot[2], 'PE')
+            atm_pe = self.price_DB(atm_pe['s_id'])
+            atm_pe = (float(atm_pe['high']) + float(atm_pe['low']) + float(atm_pe['LTP']))/3
 
-            atm_pe = self.price(atm_pe['s_id'], False, True)
-            otm_pe = self.price(otm_pe['s_id'], False, True)
-            itm_pe = self.price(itm_pe['s_id'], False, True)
-            
-            
+            itm_pe = util.securityId(index, spot[0], 'PE')
+            itm_pe = self.price_DB(itm_pe['s_id'])
+            itm_pe = (float(itm_pe['high']) + float(itm_pe['low']) + float(itm_pe['LTP']))/3
+
+            otm_pe = util.securityId(index, spot[0], 'PE')
+            otm_pe = self.price_DB(otm_pe['s_id'])
+            otm_pe = (float(otm_pe['high']) + float(otm_pe['low']) + float(otm_pe['LTP']))/3
             # res = json.load(open("./data/market_feed.json"))['data']
-            res = self.price(fut_list[index], False, True, 'FUTIDX')
+            # res = self.price(fut_list[index], False, True, 'FUTIDX')
             response = {}
-            # ohlc = {'open': res['open'][0], 'high': max(res['high']), 
-            #    'low': min(res['low']), 'close': res['close'][-1], 'ltp': res['close'][-1]}
-            atm_ce = self.getIndicator(atm_ce, index, 'vwap')
-            atm_pe = self.getIndicator(atm_pe, index, 'vwap')
-
-            otm_ce = self.getIndicator(otm_ce, index, 'vwap')
-            otm_pe = self.getIndicator(otm_pe, index, 'vwap')
-
-            itm_ce = self.getIndicator(itm_ce, index, 'vwap')
-            itm_pe = self.getIndicator(itm_pe, index, 'vwap')
-
-            response['vwap'] = float(atm_ce) + float(atm_pe) + float(otm_ce) + float(otm_pe) + float(itm_ce) + float(itm_pe)
+            # atm_pe = self.getIndicator(atm_pe, index, 'vwap')
+            response['vwap'] = float(atm_ce) + float(atm_pe)
+            response['vwap_otm'] = response['vwap'] + float(otm_ce) + float(otm_pe)
+            response['vwap_otm'] = response['vwap_otm'] + float(itm_ce) + float(itm_pe)
+            response['vwap_otm'] = response['vwap_otm']/len(spot)
             
-            sma = self.getIndicator(res, index, 'sma')
-            response['sma'] = sma
-            ema = self.getIndicator(res, index, 'ema')
-            response['ema'] = ema
+            # sma = self.getIndicator(res, index, 'sma')
+            response['sma'] = None
+            # ema = self.getIndicator(res, index, 'ema')
+            response['ema'] = None
             # response['ohlc'] = ohlc
             return response
         except Exception: return None
@@ -283,9 +282,9 @@ class OMS():
     def price_DB(self, security):
         res=[]
         if security.isnumeric():
-            if security < 1000:
-                res = indexes.find_one({'security_id': security}, sort=[('LTT', -1)])
-            else : res = options.find_one({'security_id': security}, sort=[('LTT', -1)])
+            if int(security) < 1000:
+                res = indexes.find_one({'security_id': int(security)}, sort=[('LTT', -1)])
+            else : res = options.find_one({'security_id': int(security)}, sort=[('LTT', -1)])
             if not res: res = self.price(security)
 
         else: 
@@ -316,9 +315,10 @@ class OMS():
     def price_history(self, symbol, isIndex=True):
         try:
             _dt = datetime.today().replace(hour=0,minute=0,second=0,microsecond=0)
-
+            res = None
             res = history.find_one(
-                {'symbol': symbol, 'history_date': {'$lt': _dt}}, 
+                # {'symbol': symbol, 'history_date': {'$lt': _dt}}, 
+                {'symbol': symbol, 'updated_dt': {'$gte': _dt}, 'history_date': {'$lt': _dt}},
                 sort=[('history_date', -1)])
             if res is not None: 
                 return {'open': res['open'], 'high': res['high'], 

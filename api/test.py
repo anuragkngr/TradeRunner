@@ -38,6 +38,13 @@ instruments = []#[(1, "1333"),(0,"13")]
 # df['date'] = tmp_list
 
 # res = dhan.get_order_list()
+_dt = datetime.today().replace(hour=0,minute=0,second=0,microsecond=0)
+print(type(_dt))
+print(_dt)
+_dt = str(_dt)
+print(type(_dt))
+print(_dt)
+exit()
 res = dhan.get_positions()
 res = [x for x in res['data'] if x['positionType'] != 'CLOSED']
 print(json.dumps(res))

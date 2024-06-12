@@ -35,15 +35,16 @@ class Index:
         self.ltp = idx["LTP"] if idx is not None and "LTP" in idx else -1
         self.close = idx["close"] if idx is not None and "close" in idx else -1
         self.move = float(self.ltp) - float(self.open)
-        self.movePercent = self.move * 100 / float(self.ltp)
+        self.movePercent = self.move * 100 / float(self.open)
         if index_trade_start is not None: self.open = index_trade_start
         self.ltt = idx['LTT'] if idx is not None and 'LTT' in idx else parser.parse(util.getDate() + ' ' + util.getTime()[:-3] + ':00')
-        if self.move < ((-1)*slab): self.trend = 'D'
-        elif self.move > slab: self.trend = 'U'
+        if self.move < ((-1)*slab*conf['trend_multiplier']): self.trend = 'D'
+        elif self.move > slab*conf['trend_multiplier']: self.trend = 'U'
         else: self.trend = 'N'
 
         spot = oms.spotStrike(index)
-        spot_atm = [spot, spot + slab, spot - slab]
+        spot_atm = [spot, spot+slab, spot-slab]
+        # spot_atm = [spot, spot + slab, spot - slab]
 
         stk_sid = []
         
@@ -92,7 +93,8 @@ class Index:
         self.pcr = -1
         if oi_call > 0: self.pcr = round(oi_put/oi_call, 2)
 
-        self.atm_price = sum(float(opt.ltp) for opt in atm_options if opt.strike in spot_atm)/len(spot_atm)
+        self.atm_price = sum(float(opt.ltp) for opt in atm_options if opt.strike in [spot_atm[0]])
+        self.otm_price = sum(float(opt.ltp) for opt in atm_options if opt.strike in spot_atm)/len(spot_atm)
 
         
         atm_call_oi = sum(float(opt.oi) for opt in atm_options if opt.strike in spot_atm and opt.option_type == 'CALL')
@@ -102,21 +104,22 @@ class Index:
 
         if atm_call_oi > 0: self.atm_pcr = round(atm_put_oi/atm_call_oi, 2)
 
-        self.indicators = None#oms.getIndicators(index, spot_atm)
+        self.indicators = oms.getIndicators(index, spot_atm)
         # ohlc_fut = self.indicators['ohlc']
         # self.ltp_fut = ohlc_fut['ltp']
         # self.move_fut = float(ohlc_fut['close']) - float(ohlc_fut['open'])
         # self.movePercent_fut = self.move_fut * 100 / float(ohlc_fut['close'])
         
-        self.vwap = -1 if self.indicators is None else (self.indicators['vwap'])/len(spot_atm)
+        self.vwap = -1 if self.indicators is None else self.indicators['vwap']#(self.indicators['vwap'])/len(spot_atm)
+        self.vwap_otm = -1 if self.indicators is None else self.indicators['vwap_otm']
         sma = None if self.indicators is None else self.indicators['sma']
         ema = None if self.indicators is None else self.indicators['ema']
         
         
-        self.sma_fast = sma['indicator'] if sma is not None else -1
-        self.sma_slow = sma['indicator_2'] if sma is not None else -1
-        self.ema_fast = ema['indicator'] if ema is not None else -1
-        self.ema_slow = ema['indicator_2'] if ema is not None else -1
+        # self.sma_fast = sma['indicator'] if sma is not None else -1
+        # self.sma_slow = sma['indicator_2'] if sma is not None else -1
+        # self.ema_fast = ema['indicator'] if ema is not None else -1
+        # self.ema_slow = ema['indicator_2'] if ema is not None else -1
 
         index_ohlc = oms.price_history(index)
         self.pre_open = index_ohlc['open']
@@ -124,9 +127,11 @@ class Index:
         self.pre_low = index_ohlc['low']
         self.pre_close = index_ohlc['close']
         self.pre_move = float(self.pre_close) - float(self.pre_open)
-        if self.pre_move < ((-1)*slab): self.pre_trend = 'D'
-        elif self.pre_move > slab: self.pre_trend = 'U'
+        if self.pre_move < ((-1)*slab*conf['trend_multiplier']): self.pre_trend = 'D'
+        elif self.pre_move > slab*conf['trend_multiplier']: self.pre_trend = 'U'
         else: self.pre_trend = 'N'
+
+        self.gap_up_down = self.move + float(self.open) - float(self.pre_close)
 
         self.open_high_list = [opt.to_db() for opt in all_options if opt.open_high]
 
@@ -149,6 +154,7 @@ class Index:
             self.open_low_list = llist
         
         op_st = op_ty = []
+        open_high_low.delete_many({'index': index})
 
         if len(self.open_high_list) > 0:
             for ohl in self.open_high_list:
@@ -160,7 +166,7 @@ class Index:
                 op_ty.append(ohl['option_type'])
             for idx, x in enumerate(op_st):
                 open_high_low.delete_one( {'strike': op_st[idx], 'option_type': op_ty[idx]} )
-        else: open_high_low.delete_many( {'index': index, 'open_high': True} )
+        # else: open_high_low.delete_many( {'index': index, 'open_high': True} )
 
         op_st = op_ty = []
         
@@ -174,12 +180,13 @@ class Index:
                 op_ty.append(ohl['option_type'])
             for idx, x in enumerate(op_st):
                 open_high_low.delete_one( {'strike': op_st[idx], 'option_type': op_ty[idx]} )
-        else: open_high_low.delete_many( {'index': index, 'open_high': False} )
+        # else: open_high_low.delete_many( {'index': index, 'open_high': False} )
 
     def to_dict(self):
         dictObj = self.__dict__
-        dictObj.pop('indicators', None)
-        return dictObj
+        # dictObj.pop('indicators', None)
+        # dictObj.pop('ltt', None)
+        return dictObj.pop('indicators')
     
     def print(self):
         df_ol = pd.DataFrame(self.open_low_list)
@@ -202,12 +209,14 @@ class Index:
     
     
 if __name__ == "__main__": 
+    # idx = Index('BANKNIFTY')
     idx = Index('NIFTY')
-    idx.print()
-
+    print(idx.to_dict())
+    # index_ohlc = oms.spotStrike('NIFTY')
+    # print(index_ohlc)
     # idx = Index('BANKNIFTY')
     # idx.print()
-    
+
 # {$expr:{$eq:['$open', '$low']}}
 
     exit(0)

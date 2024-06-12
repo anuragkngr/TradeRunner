@@ -1,8 +1,6 @@
 import ast, traceback, numpy as np, json, logging, pandas as pd, pymongo
 conf = json.load(open("./data/configuration.json"))
-from tabulate import tabulate, SEPARATING_LINE
 from datetime import datetime, time
-from time import sleep
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
@@ -10,8 +8,6 @@ logging.basicConfig(
     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 from utils import Utils
-from index import Index
-from position import Position
 from order_management_system import OMS
 oms = OMS()
 util = Utils()
@@ -29,9 +25,12 @@ class Trade:
         self.pnlPercent = 0.0
         self.risk = conf["risk"]
         self.reward = conf["reward"]
+        self.rnr = conf["rnr_flag"]
+        if self.rnr: self.rnr = self.risk != 0.0 and self.reward != 0.0
         self.step = conf["step"]
         self.target = conf["profit"]
         self.sl = conf["loss"]
+        if self.rnr: self.sl = self.sl ** 3
         lots = conf["lots"]
         self.margin = 0.0# if fund is None else fund
         self.status = "open"
@@ -133,7 +132,6 @@ class Trade:
                 4: f"{str(round(self.target)) + ' (' + str(round(self.reward, 1)) + '%)'}",
                 # 5: f"{str(self.margin)}",
                 # 5: f"{str(round(self.pnlMin)) + ' / ' + str(round(self.pnlMax)) + ''}",
-                
             }
         ]
     
@@ -174,12 +172,14 @@ class Trade:
         return resp
 
     def update(self, positions, finalFlag):
+
         set_pnl = util.getTradeDetails(self.trade_id)
         if set_pnl is not None:
             if self.sl < set_pnl['sl']:  self.sl = set_pnl['sl']
             if self.target > set_pnl['target']: self.target = set_pnl['target']
-            self.risk = (100*abs(self.sl))/self.margin
-            self.reward = (100*abs(self.target))/self.margin
+            if self.margin > 0:
+                self.risk = (100*abs(self.sl))/self.margin
+                self.reward = (100*abs(self.target))/self.margin
         # pnl = 0.0
         for pos in self.positions:
             for po in positions:
@@ -196,8 +196,8 @@ class Trade:
         # rnr = conf['rnr_retio'].split('-')
         sl = self.sl
         if not finalFlag:
-            if self.pnl > 500 and self.margin > 0:
-                sl = -(self.margin*self.risk)/(100*2)
+            if self.pnl > 500:# and self.margin > 0:
+                sl = self.pnl - 999#-(self.margin*self.risk)/(100*2)
             # elif self.pnl > self.target/2:
             #     sl = self.pnl/2
             elif self.pnl > self.target: 

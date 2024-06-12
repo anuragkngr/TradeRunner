@@ -54,9 +54,10 @@ class TradeBook:
         self.totalTrades += 1
         self.openTrades += 1
         self.fundUpdate(trd, fund)
-        if conf['percent_pnl'] and trd.margin > 0:
-            trd.sl = trd.margin*conf['risk']/100
-            trd.target = trd.margin*conf['reward']/100
+        if trd.rnr:
+            trd.sl = trd.risk*trd.margin/100
+            trd.target = trd.reward*trd.margin/100
+            trd.rnr = False
         util.addTradeStats({'index': trd.index, 'trade_id': trd.trade_id, 
                     'sl': trd.sl, 'target': trd.target, 'margin': trd.margin})
 
@@ -220,22 +221,25 @@ class TradeBook:
         # self.printTrades()
         data = [
             {
-                1: f"{'NIFT (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.ltp))) + ' (' + str(round(float(self.nifty.move))) + ') [' + str(self.nifty.pcr) + ']'}",
-                2: f"{'PRE (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.pre_close))) + ' (' + str(round(float(self.nifty.pre_move))) + ')'}",
-                # 3: f"{'ATM(P=' + str(round(float(self.nifty.atm_price))) + ', V: ' + str(round(float(self.nifty.vwap))) + ', ' + str(round(float(self.nifty.atm_pcr))) 
-                #      + ') EMA: ' + str(round(float(self.nifty.ema_fast - self.nifty.ema_slow)))}",
+                1: f"{'NIFT (' + str(self.nifty.trend) + '): ' + str(round(float(self.nifty.ltp))) + ' (' + str(round(float(self.nifty.move))) + '/' + str(round(float(self.nifty.gap_up_down))) + ') pcr=' + str(self.nifty.atm_pcr) + '/' + str(self.nifty.pcr)}",
+                2: f"{'ATM: p=' + str(round(float(self.nifty.atm_price))) + ' v=' + str(round(float(self.nifty.vwap)))}",
+                3: f"{'OTM: p=' + str(round(float(self.nifty.otm_price))) + ' v=' + str(round(float(self.nifty.vwap_otm)))}",
+                4: f"{'PRE (' + str(self.nifty.pre_trend) + '): ' + str(round(float(self.nifty.pre_move)))}",
             },
             {
-                1: f"{'BANK (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.ltp))) + ' (' + str(round(float(self.bank_nifty.move))) + ') [' + str(self.bank_nifty.pcr) + ']'}",
-                2: f"{'PRE (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.pre_close))) + ' (' + str(round(float(self.bank_nifty.pre_move))) + ') '}",
-                # 3: f"{'ATM(P=' + str(round(float(self.bank_nifty.atm_price))) + ', V: ' + str(round(float(self.bank_nifty.vwap))) + ', ' + str(round(float(self.bank_nifty.atm_pcr))) 
+                1: f"{'BANK (' + str(self.bank_nifty.trend) + '): ' + str(round(float(self.bank_nifty.ltp))) + ' (' + str(round(float(self.bank_nifty.move))) + '/' + str(round(float(self.bank_nifty.gap_up_down))) + ') pcr=' + str(self.bank_nifty.atm_pcr) + '/' + str(self.bank_nifty.pcr)}",
+                2: f"{'ATM: p=' + str(round(float(self.bank_nifty.atm_price))) + ' v=' + str(round(float(self.bank_nifty.vwap)))}",
+                3: f"{'OTM: p=' + str(round(float(self.bank_nifty.otm_price))) + ' v=' + str(round(float(self.bank_nifty.vwap_otm)))}",
                     #  + ') EMA: ' + str(round(float(self.bank_nifty.ema_fast - self.bank_nifty.ema_slow)))}",
                 # 4: f"{'O=H: (' + str(self.bank_nifty.open_high_list) + '), O=L: (' + str(self.bank_nifty.open_high_list) + ')'}",
+                4: f"{'PRE (' + str(self.bank_nifty.pre_trend) + '): ' + str(round(float(self.bank_nifty.pre_move)))}",
                 
             },
             {
                 1: f"{'VIX: ' + str(round(float(self.vix['close'] if self.vix is not None else -1), 2)) + ' (' + str(round((float(self.vix['LTP'] if self.vix is not None else -1) - float(self.vix['open'] if self.vix is not None else -1)), 2)) + ')'}",
                 2: f"{'P&L(' + str(round(self.openTrades)) + '): ' + str(round(self.pnl)) + ' (' + str(round(self.pnlPercent, 1)) + '%)'}",
+                3: '--',
+                4: '--'
                 # 3: f"{'SL: ' + str(round(self.sl)) + ' (' + str(round(self.risk)) + '%) - TGT: ' + str(round(self.target))}",
                 # 4: f"{'TARGET: ' + str(round(self.target)) + ' (' + str(round(self.reward)) + '%)'}",
                 # 4: f"{'MAX/MIN: (' + str(round(self.pnlMax)) + ' / ' + str(round(self.pnlMin)) + ')'}",

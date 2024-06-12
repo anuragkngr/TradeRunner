@@ -42,7 +42,7 @@ class RMS:
                 continue
             else:
                 logger.info(f"skipping applying adjustment for pos {str(pos)}")    
-                trd.adjustLeg(pos)
+                # trd.adjustLeg(pos)
                 # time.sleep(2)
                 # book.fundUpdate(trd)
     

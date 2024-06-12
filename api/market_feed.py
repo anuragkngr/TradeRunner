@@ -50,7 +50,7 @@ logger = logging.getLogger()
 feed_ids = []
 
 index = 'NIFTY'; slab = 50; 
-strike = oms.spotStrike(index)
+strike = oms.spotStrike(index)#23344
 if strike < 1: 
     print(f'Invalid strike for {index} {strike}')
     exit()
@@ -92,7 +92,7 @@ for i in range(11):
     feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
 
 index = 'BANKNIFTY'; slab = 100; i=0 
-strike = oms.spotStrike(index)
+strike = oms.spotStrike(index)#47918#
 if strike < 1: 
     print(f'Invalid strike for {index} {strike}')
     exit()
@@ -134,7 +134,7 @@ for i in range(11):
     instruments.append((2, security_id))
     feed_ids.append({'index': index, 'strike': _strike, 'security_id': security_id, 'symbol': symbol})
 # instruments = [(0, '13'), (0, '25'), (2, '38730'), (2, '46923')]
-instruments = instruments + [(2, '55116'), (2, '43996'), (2, '37103'), (2, '36969')]
+# instruments = instruments + [(2, '55116'), (2, '43996'), (2, '37103'), (2, '36969')]
 # instruments = [(2, '43889'), (2, '37051')]
 # 37758
 print(len(feed_ids))
