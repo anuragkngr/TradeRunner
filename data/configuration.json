@@ -43,5 +43,5 @@
   "dhan_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzE5MTE1MDY5LCJ0b2tlbkNvbnN1bWVyVHlwZSI6IlNFTEYiLCJ3ZWJob29rVXJsIjoiIiwiZGhhbkNsaWVudElkIjoiMTEwMjczODQzMSJ9.K9GYab2CRFp7eZ49DtP3CO9e8uY1GJ9hqD-6P9Ncm3We06Y1-AaV2aGTkVyEGXJ-crfdF4g4qSh9bIZLFq2qVA",
   "db_url_lcl": "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000",
   "db_url": "mongodb+srv://anuragkngr:LBBozFpFA2EnZvbT@kngrcluster.xsj7s2m.mongodb.net/?retryWrites=true&w=majority&appName=kngrcluster",
-  "order_online": true
+  "order_online": false
 }

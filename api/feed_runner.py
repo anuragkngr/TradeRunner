@@ -11,10 +11,11 @@ feed_runner = mydb['feed_runner']
 from subprocess import *
 now = datetime.now()
 tm = now.strftime('%Y') + '-' + now.strftime('%m') + '-' + now.strftime('%d')
-file_path = Path(f'./logs/{tm}/market_feed.txt')
-if not file_path.exists():
-    with open(f'./logs/{tm}/market_feed.txt', 'w') as fileStore:
-        fileStore.close()
+os.makedirs(f'./logs/{tm}', exist_ok=True)
+os.makedirs(f'./data/', exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO, filename=f"./logs/{tm}/market_feed.log", force=True,
+    filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 
 time_limit = 15

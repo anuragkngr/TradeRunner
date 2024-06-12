@@ -36,14 +36,12 @@ subscription_code = marketfeed.Quote
 # subscription_code = marketfeed.Ticker
 oms = OMS() 
 util = Utils()
-
-file_path = Path(f'./logs/{tm}/market_feed.txt')
-if not file_path.exists():
-    with open(f'./logs/{tm}/market_feed.txt', 'w') as fileStore:
-        fileStore.close()
-
+# file_path = Path(f'./logs/{tm}/market_feed.log')
+# if not file_path.exists():
+#     with open(f'./logs/{tm}/market_feed.txt', 'w') as fileStore:
+#         fileStore.close()
 logging.basicConfig(
-    level=logging.INFO, filename=f'./logs/{tm}/market_feed.log',
+    level=logging.INFO, filename=f'./logs/{tm}/market_feed.log', force=True,
     filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 
@@ -52,6 +50,7 @@ feed_ids = []
 index = 'NIFTY'; slab = 50; 
 strike = oms.spotStrike(index)#23344
 if strike < 1: 
+    logger.info(f'Market Feed: Invalid strike for {index} {strike}')
     print(f'Invalid strike for {index} {strike}')
     exit()
     # sleep(5)
@@ -94,6 +93,7 @@ for i in range(11):
 index = 'BANKNIFTY'; slab = 100; i=0 
 strike = oms.spotStrike(index)#47918#
 if strike < 1: 
+    logger.info(f'Market Feed: Invalid strike for {index} {strike}')
     print(f'Invalid strike for {index} {strike}')
     exit()
     # sleep(5)
@@ -137,6 +137,8 @@ for i in range(11):
 # instruments = instruments + [(2, '55116'), (2, '43996'), (2, '37103'), (2, '36969')]
 # instruments = [(2, '43889'), (2, '37051')]
 # 37758
+logger.info(f'Market Feed: feed_ids={feed_ids}, len={len(instruments)}, instruments={instruments}')
+
 print(len(feed_ids))
 print(len(instruments))
 print(instruments)
@@ -147,10 +149,12 @@ indexes.delete_many({})
 res = feed.insert_many(feed_ids)
 
 async def on_connect(instance):
+    logger.info(f'Connected to websocket')
     print('Connected to websocket')
 
 async def on_message(instance, message):
-    print('Received:', message)
+    # print('Received:', message)
+    # logger.info(message)
     try:
         saveData(message)
     except Exception:

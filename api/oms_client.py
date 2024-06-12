@@ -16,13 +16,13 @@ indexes = mydb["indexes"]
 util = Utils()
 oms = OMS()
 order_flag = False
+order_sleep=4
 now = datetime.now()
 tm = now.strftime("%Y") + "-" + now.strftime("%m") + "-" + now.strftime("%d")
 logging.basicConfig(
-    level=logging.INFO, filename=f"./logs/{tm}/order_application.log",
+    level=logging.INFO, filename=f"./logs/{tm}/oms_client.log", force=True,
     filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
-
 def positions():
         res = {}; pos = []
         try:
@@ -41,8 +41,8 @@ def positions():
         return [] if not pos else pos
 
 def placeOrder(position, transaction_type) -> bool:
-    logger.info(str(position))
-    print(f" {transaction_type}, position: {position.to_dict()}")
+    logger.info(position.to_dict())
+    # print(f" {transaction_type}, position: {position.to_dict()}")
     try:
         res = dhan.place_order(
         security_id = str(position.security_id), 
@@ -53,10 +53,10 @@ def placeOrder(position, transaction_type) -> bool:
         product_type = position.product_type,
         price = 0
         )
-        logger.info(f"OMS API Client: execOrder response: {str(res)}")
-        print(f"OMS API Client: execOrder response: {str(res)}")
-        # sleep(0.4)
-        return True
+        logger.info(f"OMS API Client: placeOrder response: {str(res)}")
+        # print(f"OMS API Client: execOrder response: {str(res)}")
+        # sleep(0.2)
+        return res
     except Exception:
         logger.info(f"OMS Client: Exception placeOrder response: {traceback.format_exc()}")
         print(f"OMS Client: Exception placeOrder response: {traceback.format_exc()}")
@@ -66,7 +66,7 @@ def execOrder(position, transaction_type) -> bool:
     try:
         res = 'OMS client: Order offline'
         if order_flag: res = placeOrder(position, transaction_type)
-        print(f'{transaction_type}, {position.to_dict()} \n {res}')
+        print(f'{transaction_type}: [{position.index}-{position.strike_price}-{position.option_type}-{position.quantity}] \n {res}')
     except Exception:
         logger.info(f"OMS Client: Exception execOrder response: {traceback.format_exc()}")
         print(f"OMS Client: Exception execOrder response: {traceback.format_exc()}")
@@ -164,18 +164,20 @@ if __name__ == "__main__":
         p_buy = int(p_buy[0]['strike'])
     else: p_buy = None
 
-    # order_flag = True; lots = 4
+    order_flag = True
+    lots = 4; order_sleep = 4
 
     if c_buy is not None:
         orders = [ pObj(index, c_buy, 'CE', 'B', lots*2) ]
         res = openPositions(orders)
+        if order_flag: sleep(order_sleep)
 
     # order_flag = False; lots = 4
 
     if p_buy is not None:
         orders = [ pObj(index, p_buy, 'PE', 'B', lots*2) ]
         res = openPositions(orders)
-
+        if order_flag: sleep(order_sleep)
     # order_flag = True; lots = 4
 
     if c_sell is not None:
@@ -185,6 +187,7 @@ if __name__ == "__main__":
         orders = [ pObj(index, spot_strike, 'CE', 'B', lots),
                   pObj(index, c_sell, 'CE', 'S', lots) ]
         res = openPositions(orders)
+        if order_flag: sleep(order_sleep)
 
     # order_flag = True; lots = 4
 
@@ -195,7 +198,6 @@ if __name__ == "__main__":
         orders = [ pObj(index, spot_strike, 'PE', 'B', lots),
                   pObj(index, p_sell, 'PE', 'S', lots) ]
         res = openPositions(orders)                
-
 
     # orders = [
     #     pObj(index, 23250, 'CE', 'S', 4),
